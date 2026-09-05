@@ -58,7 +58,7 @@ Voice call control is performed over the AT command port (`/dev/ttyUSB0` or `/de
    Modem emits:
    ```text
    RING
-   +CLIP: "01841832034",129,,,,0
+   +CLIP: "+88018XXXXXXXX",129,,,,0
    ```
 3. **Answering Call**: `ATA`
 4. **Hanging Up**: `AT+CHUP` or `ATH`
@@ -69,10 +69,10 @@ Voice call control is performed over the AT command port (`/dev/ttyUSB0` or `/de
 ### 4. Empirical Test Results & Why LTE Voice Failed
 
 #### 4.1 Teletalk Carrier Tests
-On live hardware with a Teletalk SIM, we initiated an outgoing voice call to `01841832034`:
+On live hardware with a Teletalk SIM, we initiated an outgoing voice call to a destination handset (`+88018XXXXXXXX`):
 ```text
-Dialing 01841832034; on /dev/ttyUSB0...
-[0.0s] USB0: b'ATD01841832034;\r'
+Dialing +88018XXXXXXXX; on /dev/ttyUSB0...
+[0.0s] USB0: b'ATD+88018XXXXXXXX;\r'
 [32.1s] USB0: b'\r\nNO CARRIER\r\n'
 ```
 Querying the 3GPP Extended Error Report (`AT+CEER`) revealed:
@@ -83,10 +83,10 @@ AT+CEER
 
 #### 4.2 Robi (AKTEL) Carrier Tests
 On live hardware with a Robi SIM (`47002`), we tested both outbound and inbound calling:
-1. **Outbound Call (`ATD01842988266;`)**:
+1. **Outbound Call (`ATD+88018XXXXXXXX;`)**:
    - The modem returned `OK` and held the RF link active for 30.0 seconds.
    - When terminated from the host with `AT+CHUP`, the baseband reported `+CEER: Client ended call`. However, the destination phone did not alert because the carrier's MME did not forward an active CSFB voice bearer.
-2. **Inbound Call (Dialing `01841832034` from Robi & Teletalk)**:
+2. **Inbound Call (Dialing the dongle's SIM number from external handsets)**:
    - On the calling handset: 20–30 seconds of absolute dead silence, followed by an abrupt termination.
    - On the dongle: Serial monitoring caught the internal bearer state transition; querying `AT+CEER` immediately returned `+CEER: No service`.
 

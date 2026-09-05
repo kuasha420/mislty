@@ -15,11 +15,11 @@ In 2026, one such forgotten device was pulled from storage for a weekend deep-di
 - **Wi-Fi Co-Processor**: Broadcom `BRCM_WL` 802.11b/g/n radio.
 - **Board Code**: Aleka Incorporated, Project `MDM9600 UV310` (HW Rev `UV310-U-5.1 CGWL`).
 - **The "Siemens SG75" Mystery**: A historical entry in `/usr/share/hwdata/usb.ids` for PID `05c6:6000` which Qualcomm reused as a reference modem ID.
-- **Recovered Wi-Fi Credentials**: The forgotten WPA2 password (`misty-6969`) was recovered directly from baseband NVRAM via `AT^WFPWD?`.
+- **Recovered Wi-Fi Credentials & The Feline Origin**: The forgotten WPA2 password (`misty-6969`) was recovered directly from baseband NVRAM via `AT^WFPWD?`. In 2018, the founder adopted their first cat, **Misty**—sparking a feline fascination that eventually gave birth to **Purrfect Software Limited (PSL)**, where Misty now reigns as the *Keeper of Wisdom* across the Purrfect Universe. That password was the very last credential configured on this dongle before it was consigned to a drawer of obsolete tech when its owner made the leap to Linux.
 - **The Simultaneous Mode Discovery**: The device supports **simultaneous dual-mode operation**—providing low-latency USB PPP connectivity to the host PC while broadcasting its Wi-Fi AP to other devices at the same time.
 - **The Name `MisLTy`**: 
-  - `Misty`: The recovered NVRAM key that unlocked the radio.
-  - `LTE`: The high-speed data backbone running at full signal.
+  - `Misty`: The beloved feline Keeper of Wisdom whose name cracked open the radio NVRAM.
+  - `LTE`: The high-speed 4G data backbone running at full signal.
   - `Missed`: The missed call, the missed fallback, the missed connection (`+CEER: No service`). The tragic voice subsystem reverse-engineered down to its 8000 Hz 16-bit PCM audio pipelines and telephony AT state machines, only to be rejected in 2026 by modern carrier MMEs because 3G was switched off and 4G data sticks lack VoLTE provisioning. So close, yet so far `</3`.
 
 ---

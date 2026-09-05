@@ -10,12 +10,12 @@ This reference documents the complete command set supported by the Aleka UV310 f
 
 | Command | Type | Description | Example Response |
 | :--- | :--- | :--- | :--- |
-| `ATI` | Exec | Display manufacturer, model, firmware revision, and IMEI | `Manufacturer: QUALCOMM INCORPORATED`<br>`Model: 0`<br>`Revision: MDM9K-CIGO-U-7.3.9-4M`<br>`IMEI: 861179037820644` |
+| `ATI` | Exec | Display manufacturer, model, firmware revision, and IMEI | `Manufacturer: QUALCOMM INCORPORATED`<br>`Model: 0`<br>`Revision: MDM9K-CIGO-U-7.3.9-4M`<br>`IMEI: 86117903XXXXXXX` |
 | `AT+CGMI` | Exec | Request manufacturer identification | `QUALCOMM INCORPORATED` |
 | `AT+CGMM` | Exec | Request model identification | `0` |
 | `AT+CGMR` | Exec | Request firmware revision | `MDM9K-CIGO-U-7.3.9-4M  1  [Jan 19 2012 21:00:00]` |
-| `AT+CGSN` | Exec | Request product serial number (IMEI) | `861179037820644` |
-| `AT+CIMI` | Exec | Request International Mobile Subscriber Identity (IMSI) | `470044002086391` |
+| `AT+CGSN` | Exec | Request product serial number (IMEI) | `86117903XXXXXXX` |
+| `AT+CIMI` | Exec | Request International Mobile Subscriber Identity (IMSI) | `47004XXXXXXXXXX` |
 | `AT+CLAC` | Exec | List all supported AT commands | *(Full list of ~150 commands)* |
 
 ---
@@ -77,7 +77,7 @@ This reference documents the complete command set supported by the Aleka UV310 f
 
 | `AT+CGSMS?` | Query | SMS routing domain | `+CGSMS: 2`<br>`0`=Packet Switched (LTE), `1`=Circuit Switched (2G/3G), `2`=PS preferred, `3`=CS preferred. |
 | `AT+CGSMS=<val>` | Set | Set SMS routing domain (use `2` for 4G LTE SMS) | `OK` |
-| `AT+CSCA?` | Query | SMS Service Center Address (SMSC) | `+CSCA: "+880150159999",145` |
+| `AT+CSCA?` | Query | SMS Service Center Address (SMSC) | `+CSCA: "+88015015XXXX",145` |
 | `AT+CEER` | Exec | Extended Error Report (Diagnose disconnect/reject cause) | `+CEER: No service available` or `+CEER: Client ended call` |
 
 ---
