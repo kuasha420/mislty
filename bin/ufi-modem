@@ -1,0 +1,469 @@
+#!/usr/bin/env python3
+"""
+ufi-modem: Control and connection manager for Qualcomm MDM9200/MDM9600
+           4G LTE UFI Dongle / Modem (05c6:6000 / UV310).
+"""
+
+import sys
+import os
+import time
+import glob
+import select
+import termios
+import tty
+import subprocess
+import argparse
+
+DEFAULT_PORTS = ["/dev/ttyUSB0", "/dev/ttyUSB1"]
+CHAT_FILE = "/etc/ppp/chat-ufi"
+PEER_FILE = "/etc/ppp/peers/ufi"
+
+def find_at_port():
+    ports = sorted(glob.glob("/dev/ttyUSB*"))
+    for port in ports:
+        try:
+            fd = os.open(port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+            tty.setraw(fd)
+            attrs = termios.tcgetattr(fd)
+            attrs[4] = termios.B115200
+            attrs[5] = termios.B115200
+            termios.tcsetattr(fd, termios.TCSANOW, attrs)
+            termios.tcflush(fd, termios.TCIOFLUSH)
+            os.write(fd, b"AT\r\n")
+            time.sleep(0.12)
+            r, _, _ = select.select([fd], [], [], 0.3)
+            if r:
+                res = os.read(fd, 512)
+                if b"OK" in res:
+                    os.close(fd)
+                    return port
+            os.close(fd)
+        except Exception:
+            pass
+    return None
+
+def send_at_command(cmd, port=None, timeout=1.8):
+    if not port:
+        port = find_at_port()
+    if not port:
+        raise RuntimeError("No responding Qualcomm AT port (/dev/ttyUSB*) found!")
+
+    fd = os.open(port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+    try:
+        tty.setraw(fd)
+        attrs = termios.tcgetattr(fd)
+        attrs[4] = termios.B115200
+        attrs[5] = termios.B115200
+        termios.tcsetattr(fd, termios.TCSANOW, attrs)
+        termios.tcflush(fd, termios.TCIOFLUSH)
+
+        cmd_bytes = (cmd.strip() + "\r\n").encode()
+        os.write(fd, cmd_bytes)
+
+        out = b""
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            r, _, _ = select.select([fd], [], [], 0.2)
+            if r:
+                chunk = os.read(fd, 4096)
+                if chunk:
+                    out += chunk
+                    if b"OK\r\n" in out or b"ERROR" in out:
+                        break
+        return out.decode("latin1", errors="replace").strip()
+    finally:
+        os.close(fd)
+
+def get_status():
+    port = find_at_port()
+    if not port:
+        print("❌ Error: Modem not detected or ttyUSB ports unavailable.")
+        print("   Make sure the USB dongle is plugged in.")
+        return
+
+    print("========================================================")
+    print("      MisLTy 4G LTE Linux Suite (MDM9600/UV310)         ")
+    print("========================================================")
+    print(f"📡 Serial Port:      {port}")
+
+    # Hardware & Firmware
+    project = send_at_command("AT^PROJECTNAME?", port)
+    hwver = send_at_command("AT^HWVER?", port)
+    swver = send_at_command("AT^SWVER?", port)
+    imei = send_at_command("AT+CGSN", port)
+
+    proj_str = "MDM9600 UV310"
+    for line in project.splitlines():
+        if "PROJECTNAME" in line:
+            proj_str = line.split(":", 1)[-1].strip()
+
+    hw_str = "UV310-U-5.1"
+    for line in hwver.splitlines():
+        if "HWVER" in line:
+            hw_str = line.split(":", 1)[-1].strip()
+
+    sw_str = "MDM9K"
+    for line in swver.splitlines():
+        if "SWVER" in line:
+            sw_str = line.split(":", 1)[-1].strip()
+
+    imei_str = "Unknown"
+    for line in imei.splitlines():
+        line = line.strip()
+        if line.isdigit() and len(line) >= 14:
+            imei_str = line
+
+    print(f"🔧 Hardware:         {proj_str} ({hw_str})")
+    print(f"💾 Firmware:         {sw_str}")
+    print(f"🆔 IMEI:             {imei_str}")
+
+    # SIM & Network
+    cpin = send_at_command("AT+CPIN?", port)
+    sim_ok = "+CPIN: READY" in cpin
+
+    cops = send_at_command("AT+COPS?", port)
+    csq = send_at_command("AT+CSQ", port)
+    cereg = send_at_command("AT+CEREG?", port)
+    cgdcont = send_at_command("AT+CGDCONT?", port)
+
+    operator = "Searching / None"
+    for line in cops.splitlines():
+        if "+COPS:" in line and '"' in line:
+            parts = line.split('"')
+            if len(parts) >= 2:
+                operator = parts[1]
+
+    rssi_val = 99
+    csq_str = "No Signal (Searching...)"
+    for line in csq.splitlines():
+        if "+CSQ:" in line:
+            raw = line.split(":", 1)[-1].strip().split(",")[0]
+            if raw.isdigit():
+                rssi_val = int(raw)
+                if rssi_val != 99:
+                    dbm = -113 + (rssi_val * 2)
+                    bars = min(5, max(1, rssi_val // 6))
+                    csq_str = f"{'📶' * bars} {rssi_val}/31 ({dbm} dBm)"
+
+    reg_state = "Not registered"
+    for line in cereg.splitlines():
+        if "+CEREG:" in line:
+            parts = line.split(":", 1)[-1].strip().split(",")
+            stat = parts[-1].strip()
+            if stat == "1":
+                reg_state = "Registered (Home LTE)"
+            elif stat == "5":
+                reg_state = "Registered (Roaming LTE)"
+            elif stat == "2":
+                reg_state = "Searching..."
+
+    apn_str = "None"
+    for line in cgdcont.splitlines():
+        if '+CGDCONT: 1,"IP"' in line or '+CGDCONT: 1,"IPV4V6"' in line:
+            parts = line.split('"')
+            if len(parts) >= 5:
+                apn_str = parts[3]
+
+    print("--------------------------------------------------------")
+    print(f"💳 SIM Status:       {'✅ READY' if sim_ok else '❌ Not Ready / Missing'}")
+    print(f"🌐 Operator:         {operator}")
+    print(f"📶 Signal Quality:   {csq_str}")
+    print(f"🔗 Network Status:   {reg_state}")
+    print(f"⚙️  Current APN:      {apn_str}")
+
+    # Wi-Fi State
+    wifi = send_at_command("AT+WIFI?", port)
+    ssid = send_at_command("AT^SSID?", port)
+    pwd = send_at_command("AT^WFPWD?", port)
+
+    wifi_on = "+WIFI:1" in wifi
+    ssid_str = "TypeScript 420"
+    for line in ssid.splitlines():
+        if "wl_ssid" in line:
+            ssid_str = line.split("=", 1)[-1].strip()
+
+    pwd_str = "Unknown"
+    for line in pwd.splitlines():
+        if "wl_wpa_psk_key" in line:
+            pwd_str = line.split("=", 1)[-1].strip()
+
+    print("--------------------------------------------------------")
+    print(f"📻 Wi-Fi AP Mode:    {'🟢 ACTIVE (Broadcasting)' if wifi_on else '⚪ DISABLED (USB Modem Mode)'}")
+    print(f"🏷️  Wi-Fi SSID:       {ssid_str}")
+    print(f"🔑 Wi-Fi Password:   {pwd_str}")
+
+    # PPP Connection Status
+    ppp_status = subprocess.run(["ip", "a", "show", "ppp0"], capture_output=True, text=True)
+    is_connected = ppp_status.returncode == 0 and "inet " in ppp_status.stdout
+    ip_addr = "N/A"
+    if is_connected:
+        for line in ppp_status.stdout.splitlines():
+            if "inet " in line:
+                ip_addr = line.strip().split()[1]
+
+    print("--------------------------------------------------------")
+    print(f"💻 USB PPP Link:     {'🟢 CONNECTED' if is_connected else '⚪ DISCONNECTED'}")
+    if is_connected:
+        print(f"🌍 Host IP Address:  {ip_addr}")
+    print("========================================================")
+
+def wifi_control(action):
+    port = find_at_port()
+    if not port:
+        print("❌ Modem port not found!")
+        return
+
+    if action == "on":
+        print("🔄 Turning ON Wi-Fi router mode...")
+        resp = send_at_command("AT+WIFI=1", port)
+        if "OK" in resp:
+            print("✅ Wi-Fi radio is now ON and broadcasting.")
+        else:
+            print(f"⚠️ Response: {resp}")
+    elif action == "off":
+        print("🔄 Turning OFF Wi-Fi router mode...")
+        resp = send_at_command("AT+WIFI=0", port)
+        if "OK" in resp:
+            print("✅ Wi-Fi radio is now OFF (Power saving / USB modem only).")
+        else:
+            print(f"⚠️ Response: {resp}")
+
+def set_apn(apn):
+    port = find_at_port()
+    if not port:
+        print("❌ Modem port not found!")
+        return
+
+    print(f"⚙️ Setting APN to '{apn}'...")
+    send_at_command(f'AT+CGDCONT=1,"IP","{apn}"', port)
+    send_at_command(f'AT^APN={apn}', port)
+    print("✅ APN updated. Updating PPP chat script...")
+
+    chat_content = f"""ABORT 'BUSY'
+ABORT 'NO CARRIER'
+ABORT 'NO DIALTONE'
+ABORT 'ERROR'
+TIMEOUT 15
+'' AT
+OK 'AT+CGDCONT=1,"IP","{apn}"'
+OK 'ATD*99#'
+CONNECT \\c
+"""
+    try:
+        with open(CHAT_FILE, "w") as f:
+            f.write(chat_content)
+        print(f"✅ Updated {CHAT_FILE}")
+    except PermissionError:
+        print(f"⚠️ Need root privileges to write {CHAT_FILE}. Run with sudo.")
+
+def connect_ppp(default_route=False):
+    port = find_at_port()
+    if not port:
+        print("❌ Modem port not found!")
+        return
+
+    # Check if already connected
+    ppp_status = subprocess.run(["ip", "a", "show", "ppp0"], capture_output=True, text=True)
+    if ppp_status.returncode == 0 and "inet " in ppp_status.stdout:
+        print("ℹ️ ppp0 is already connected!")
+        return
+
+    print("🚀 Initializing USB Modem Data Connection...")
+    send_at_command("ATH", port)
+    time.sleep(0.5)
+
+    route_opt = "defaultroute replacedefaultroute" if default_route else "nodefaultroute"
+    peer_content = f"""{port}
+115200
+connect "/usr/bin/chat -v -f {CHAT_FILE}"
+noauth
+{route_opt}
+usepeerdns
+persist
+maxfail 5
+holdoff 3
+debug
+crtscts
+lock
+local
+hide-password
+default-asyncmap
+ipcp-accept-local
+ipcp-accept-remote
+"""
+    try:
+        with open(PEER_FILE, "w") as f:
+            f.write(peer_content)
+    except PermissionError:
+        print(f"⚠️ Need root privileges to write {PEER_FILE}. Run with sudo.")
+        return
+
+    print("📞 Dialing via pppd...")
+    subprocess.Popen(["sudo", "pppd", "call", "ufi"])
+
+    print("⏳ Waiting for IP allocation...")
+    for _ in range(12):
+        time.sleep(1)
+        res = subprocess.run(["ip", "a", "show", "ppp0"], capture_output=True, text=True)
+        if res.returncode == 0 and "inet " in res.stdout:
+            for line in res.stdout.splitlines():
+                if "inet " in line:
+                    ip_addr = line.strip().split()[1]
+                    print(f"🎉 Connected! Allocated IP: {ip_addr}")
+                    if not default_route:
+                        print("ℹ️ Connected in secondary interface mode (nodefaultroute).")
+                        print("   Test with: curl --interface ppp0 https://icanhazip.com")
+                    return
+    print("⚠️ Connection started, but ppp0 IP not assigned yet. Check 'ufi-modem status'.")
+
+def disconnect_ppp():
+    print("🛑 Disconnecting PPP session...")
+    subprocess.run(["sudo", "killall", "-SIGTERM", "pppd"], capture_output=True)
+    time.sleep(1)
+    port = find_at_port()
+    if port:
+        send_at_command("ATH", port)
+    print("✅ Disconnected.")
+
+def list_sms():
+    port = find_at_port()
+    if not port:
+        print("❌ Modem port not found!")
+        return
+    send_at_command("AT+CMGF=1", port)
+    send_at_command('AT+CPMS="SM","SM","SM"', port)
+    resp = send_at_command('AT+CMGL="ALL"', port, timeout=3.0)
+    print("📩 Messages stored on SIM:")
+    lines = resp.splitlines()
+    msg_found = False
+    for i, line in enumerate(lines):
+        if line.startswith("+CMGL:"):
+            msg_found = True
+            header = line
+            body = lines[i+1] if i+1 < len(lines) and not lines[i+1].startswith("+CMGL:") else ""
+            print(f"  {header}\n    Text: {body}")
+    if not msg_found:
+        print("  (Inbox is empty)")
+
+def send_sms(number, text):
+    port = find_at_port()
+    if not port:
+        print("❌ Modem port not found!")
+        return
+    fd = os.open(port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+    try:
+        tty.setraw(fd)
+        attrs = termios.tcgetattr(fd)
+        attrs[4] = termios.B115200
+        attrs[5] = termios.B115200
+        termios.tcsetattr(fd, termios.TCSANOW, attrs)
+        termios.tcflush(fd, termios.TCIOFLUSH)
+
+        # Text mode
+        os.write(fd, b"AT+CMGF=1\r\n")
+        time.sleep(0.2)
+        os.read(fd, 1024)
+
+        # Start SMS command
+        os.write(fd, f'AT+CMGS="{number}"\r\n'.encode())
+        time.sleep(0.3)
+        prompt = os.read(fd, 1024)
+        if b">" not in prompt:
+            print("❌ Did not get SMS prompt '>' from modem. Response:", prompt)
+            return
+
+        # Write body + Ctrl+Z
+        body_bytes = text.encode("latin1", errors="replace") + b"\x1A"
+        os.write(fd, body_bytes)
+        print(f"📤 Sending SMS to {number}...")
+
+        out = b""
+        start_time = time.time()
+        while time.time() - start_time < 10:
+            r, _, _ = select.select([fd], [], [], 0.5)
+            if r:
+                chunk = os.read(fd, 1024)
+                if chunk:
+                    out += chunk
+                    if b"OK\r\n" in out or b"ERROR\r\n" in out:
+                        break
+        resp_str = out.decode("latin1", errors="replace").strip()
+        if "OK" in resp_str and "+CMGS:" in resp_str:
+            print(f"✅ SMS sent successfully! ({resp_str})")
+        else:
+            print(f"⚠️ Error sending SMS: {resp_str}")
+    finally:
+        os.close(fd)
+
+def show_sim():
+    port = find_at_port()
+    if not port:
+        print("❌ Modem port not found!")
+        return
+    cpin = send_at_command("AT+CPIN?", port)
+    cimi = send_at_command("AT+CIMI", port)
+    cops = send_at_command("AT+COPS?", port)
+    print("💳 SIM Card Details:")
+    print("  PIN Status: ", cpin.replace("\r\n", " ").strip())
+    print("  IMSI:       ", cimi.replace("\r\n", " ").strip())
+    print("  Operator:   ", cops.replace("\r\n", " ").strip())
+
+def main():
+    parser = argparse.ArgumentParser(description="Qualcomm MDM9600 / UV310 4G LTE Modem CLI")
+    subparsers = parser.add_subparsers(dest="command")
+
+    subparsers.add_parser("status", help="Show modem, SIM, Wi-Fi, and network status")
+
+    wifi_p = subparsers.add_parser("wifi", help="Control Wi-Fi radio")
+    wifi_p.add_argument("action", choices=["on", "off", "status"], help="Wi-Fi action")
+
+    apn_p = subparsers.add_parser("apn", help="Set cellular APN")
+    apn_p.add_argument("name", help="APN name (e.g. internet, wap, gpinternet)")
+
+    conn_p = subparsers.add_parser("connect", help="Connect USB modem via PPP")
+    conn_p.add_argument("--default", action="store_true", help="Set ppp0 as default internet gateway")
+
+    subparsers.add_parser("disconnect", help="Disconnect USB modem")
+
+    # SMS
+    sms_p = subparsers.add_parser("sms", help="SMS messaging")
+    sms_sub = sms_p.add_subparsers(dest="sms_action")
+    sms_sub.add_parser("list", help="List SMS messages on SIM")
+    send_cmd = sms_sub.add_parser("send", help="Send SMS")
+    send_cmd.add_argument("number", help="Recipient phone number (e.g. +8801...)")
+    send_cmd.add_argument("text", help="Message body")
+
+    # SIM
+    subparsers.add_parser("sim", help="Show SIM information")
+
+    at_p = subparsers.add_parser("at", help="Send arbitrary AT command")
+    at_p.add_argument("cmd", help="AT command (e.g. AT+CSQ)")
+
+    args = parser.parse_args()
+
+    if not args.command or args.command == "status":
+        get_status()
+    elif args.command == "wifi":
+        if args.action == "status":
+            get_status()
+        else:
+            wifi_control(args.action)
+    elif args.command == "apn":
+        set_apn(args.name)
+    elif args.command == "connect":
+        connect_ppp(default_route=args.default)
+    elif args.command == "disconnect":
+        disconnect_ppp()
+    elif args.command == "sms":
+        if args.sms_action == "send":
+            send_sms(args.number, args.text)
+        else:
+            list_sms()
+    elif args.command == "sim":
+        show_sim()
+    elif args.command == "at":
+        resp = send_at_command(args.cmd)
+        print(resp)
+
+if __name__ == "__main__":
+    main()

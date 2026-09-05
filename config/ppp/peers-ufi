@@ -1,0 +1,17 @@
+/dev/ttyUSB0
+115200
+connect "/usr/bin/chat -v -f /etc/ppp/chat-ufi"
+noauth
+nodefaultroute
+usepeerdns
+persist
+maxfail 5
+holdoff 3
+debug
+crtscts
+lock
+local
+hide-password
+default-asyncmap
+ipcp-accept-local
+ipcp-accept-remote

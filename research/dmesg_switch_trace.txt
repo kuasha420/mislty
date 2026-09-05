@@ -1,0 +1,60 @@
+[86494.410008] option1 ttyUSB3: GSM modem (1-port) converter now disconnected from ttyUSB3
+[86494.410033] option 1-3:1.3: device disconnected
+[86499.378964] usb 1-3: New USB device found, idVendor=05c6, idProduct=f000, bcdDevice= 0.00
+[86499.378975] usb 1-3: Product: Qualcomm CDMA Technologies MSM
+[86499.378978] usb 1-3: Manufacturer: Qualcomm, Incorporated
+[86500.452333] usb 1-3: New USB device found, idVendor=05c6, idProduct=6000, bcdDevice= 0.00
+[86500.452344] usb 1-3: Product: Qualcomm CDMA Technologies MSM
+[86500.452347] usb 1-3: Manufacturer: Qualcomm, Incorporated
+[86500.457913] option 1-3:1.0: GSM modem (1-port) converter detected
+[86500.458126] usb 1-3: GSM modem (1-port) converter now attached to ttyUSB0
+[86500.458631] option 1-3:1.1: GSM modem (1-port) converter detected
+[86500.458788] usb 1-3: GSM modem (1-port) converter now attached to ttyUSB1
+[86500.459104] option 1-3:1.2: GSM modem (1-port) converter detected
+[86500.459285] usb 1-3: GSM modem (1-port) converter now attached to ttyUSB2
+[86500.459598] option 1-3:1.3: GSM modem (1-port) converter detected
+[86500.459782] usb 1-3: GSM modem (1-port) converter now attached to ttyUSB3
+[86517.328603] option1 ttyUSB0: GSM modem (1-port) converter now disconnected from ttyUSB0
+[86517.328648] option 1-3:1.0: device disconnected
+[86517.329013] option1 ttyUSB1: GSM modem (1-port) converter now disconnected from ttyUSB1
+[86517.329062] option 1-3:1.1: device disconnected
+[86517.329525] option1 ttyUSB2: GSM modem (1-port) converter now disconnected from ttyUSB2
+[86517.329566] option 1-3:1.2: device disconnected
+[86517.330025] option1 ttyUSB3: GSM modem (1-port) converter now disconnected from ttyUSB3
+[86517.330073] option 1-3:1.3: device disconnected
+[86522.310892] usb 1-3: New USB device found, idVendor=05c6, idProduct=f000, bcdDevice= 0.00
+[86522.310903] usb 1-3: Product: Qualcomm CDMA Technologies MSM
+[86522.310906] usb 1-3: Manufacturer: Qualcomm, Incorporated
+[86523.766745] usb 1-3: New USB device found, idVendor=05c6, idProduct=6000, bcdDevice= 0.00
+[86523.766759] usb 1-3: Product: Qualcomm CDMA Technologies MSM
+[86523.766763] usb 1-3: Manufacturer: Qualcomm, Incorporated
+[86523.773831] option 1-3:1.0: GSM modem (1-port) converter detected
+[86523.773981] usb 1-3: GSM modem (1-port) converter now attached to ttyUSB0
+[86523.774221] option 1-3:1.1: GSM modem (1-port) converter detected
+[86523.774314] usb 1-3: GSM modem (1-port) converter now attached to ttyUSB1
+[86523.774532] option 1-3:1.2: GSM modem (1-port) converter detected
+[86523.774639] usb 1-3: GSM modem (1-port) converter now attached to ttyUSB2
+[86523.774914] option 1-3:1.3: GSM modem (1-port) converter detected
+[86523.775033] usb 1-3: GSM modem (1-port) converter now attached to ttyUSB3
+[86836.775593] option1 ttyUSB0: GSM modem (1-port) converter now disconnected from ttyUSB0
+[86836.775645] option 1-3:1.0: device disconnected
+[86836.776115] option1 ttyUSB1: GSM modem (1-port) converter now disconnected from ttyUSB1
+[86836.776176] option 1-3:1.1: device disconnected
+[86836.776679] option1 ttyUSB2: GSM modem (1-port) converter now disconnected from ttyUSB2
+[86836.776717] option 1-3:1.2: device disconnected
+[86836.776969] option1 ttyUSB3: GSM modem (1-port) converter now disconnected from ttyUSB3
+[86836.777000] option 1-3:1.3: device disconnected
+[86842.154275] usb 1-3: New USB device found, idVendor=05c6, idProduct=f000, bcdDevice= 0.00
+[86842.154286] usb 1-3: Product: Qualcomm CDMA Technologies MSM
+[86842.154288] usb 1-3: Manufacturer: Qualcomm, Incorporated
+[86843.218533] usb 1-3: New USB device found, idVendor=05c6, idProduct=6000, bcdDevice= 0.00
+[86843.218543] usb 1-3: Product: Qualcomm CDMA Technologies MSM
+[86843.218546] usb 1-3: Manufacturer: Qualcomm, Incorporated
+[86843.224560] option 1-3:1.0: GSM modem (1-port) converter detected
+[86843.224725] usb 1-3: GSM modem (1-port) converter now attached to ttyUSB0
+[86843.225052] option 1-3:1.1: GSM modem (1-port) converter detected
+[86843.225159] usb 1-3: GSM modem (1-port) converter now attached to ttyUSB1
+[86843.225394] option 1-3:1.2: GSM modem (1-port) converter detected
+[86843.225499] usb 1-3: GSM modem (1-port) converter now attached to ttyUSB2
+[86843.225718] option 1-3:1.3: GSM modem (1-port) converter detected
+[86843.225800] usb 1-3: GSM modem (1-port) converter now attached to ttyUSB3
