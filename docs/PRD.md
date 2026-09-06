@@ -41,17 +41,17 @@ The hardware was neither cheap nor broken. It was an engineering marvel trapped 
 - **`Missed`**: The missed call, the missed fallback, the missed connection (`+CEER: No service`). A full cellular voice subsystem reverse-engineered down to its 8000 Hz 16-bit mono linear PCM audio streaming pipeline (`pcmWave.dll`) and telephony state machines, only to be rejected at the network edge in 2026 because 3G was decommissioned in Bangladesh and 4G data dongles lack carrier VoLTE/IMS provisioning (`</3`).
 
 ### 1.2 Mission Statement
-The **MisLTy Desktop Suite & MicroSD Toolkit** exists to redeem this hardware. We provide a modern, ultra-reliable, zero-bloat Linux environment that unlocks the dongle's full concurrent dual-mode potential (simultaneous USB PPP + Broadcom Wi-Fi), provides rich two-way SMS messaging, exposes deep RF telemetry, pays tribute to the tragic voice architecture through a lore-accurate Easter egg, and enables a 100% offline, zero-internet first-plug experience delivered directly from the onboard 32 GB MicroSD card.
+The **MisLTy Desktop Suite & MicroSD Toolkit** exists to redeem this hardware. We provide a modern, ultra-reliable, zero-bloat Linux environment that unlocks the dongle's two distinct operational modes (autonomous Pocket Router Wi-Fi AP vs. direct high-speed low-latency USB Tethered Modem), provides rich two-way SMS messaging, exposes deep RF telemetry, pays tribute to the tragic voice architecture through a lore-accurate Easter egg, and enables a 100% offline, zero-internet first-plug experience delivered directly from the onboard 32 GB MicroSD card.
 
 ### 1.3 Target Personas
 1. **The Linux Sysadmin & DevOps Engineer**: Needs an indestructible, scriptable, out-of-band cellular backup link for servers or field laptops. Demands raw terminal visibility, deterministic routing, systemd service management, and zero desktop daemon dependencies.
 2. **The Retro-Hardware & Cellular Hacker**: Driven by curiosity. Appreciates baseband architecture, QCDM diagnostic registers, Hayes AT command sets, and the poetic archaeology of resurrecting abandoned silicon.
-3. **The Digital Nomad & Off-Grid Explorer**: Travels to remote areas with fluctuating cellular coverage. Needs an autonomous portable Wi-Fi hub that simultaneously feeds a wired Linux workstation with low latency while distributing connectivity to mobile devices, completely self-bootstrapping from the dongle itself.
+3. **The Digital Nomad & Off-Grid Explorer**: Travels to remote areas with fluctuating cellular coverage. Needs an autonomous portable Wi-Fi hub for multi-device field work, or an ultra-low-latency direct wired USB connection for their workstation without needing any Wi-Fi dongles, completely self-bootstrapping from the dongle itself.
 
 ### 1.4 Guiding Design Principles
 - **Zero-Internet Self-Sufficiency**: The suite must be entirely installable and operational without an active internet connection. Everything required lives on the dongle's MicroSD card.
 - **Direct Serial Sovereignty**: Bypass generic desktop abstractions that crash on composite modems. Communicate directly with `/dev/ttyUSB*` ports using non-blocking asynchronous Python/Qt architectures.
-- **Concurrent Dual-Mode by Default**: Treat simultaneous USB PPP host data and Broadcom Wi-Fi AP broadcasting as standard operating procedure, never an either/or compromise.
+- **Explicit Operational Mode Sovereignty**: Provide clear, deterministic switching between **Pocket Router Mode** (standalone Wi-Fi AP) and **USB Tethered Modem Mode** (direct host data link), honoring the hardware's 500mA power ceiling and single-PDN routing architecture without confusing state drift.
 - **Radical Telemetry Transparency**: Expose raw signal strength (RSSI and dBm), frequency bands, cell registration vectors, and extended error diagnostics (`AT+CEER`) directly to the user.
 - **Reverence for the Lore**: Infuse the software with the warmth, wit, and feline elegance of the Purrfect Universe and Misty the cat.
 
@@ -275,19 +275,25 @@ To guarantee that high-speed data transmission over PPP never interferes with re
 ---
 
 ### FR-2: Broadcom Wi-Fi Deck
-- **FR-2.1: Hotspot Power Toggle ("Dual Mode" vs "Pure USB")**:
+- **FR-2.1: Hotspot Control & Hardware State Display ("Pocket Router Mode" vs "USB Modem Mode")**:
   - Control the Broadcom `BRCM_WL` co-processor directly via AT commands:
-    - Enable Hotspot (`AT+WIFI=1`): Powers up 2.4 GHz radio, launches internal DHCP server (`192.168.100.1` pool), and broadcasts SSID.
-    - Disable Hotspot (`AT+WIFI=0`): Shuts down Broadcom radio entirely.
-  - Power-saving benefit: Saves 200–300 mA of USB bus power when running mobile on a laptop battery. Zero RF emissions when purely tethered.
+    - Enable Hotspot (`AT+WIFI=1`): Configures baseband NVRAM for Pocket Router AP broadcast, launches internal DHCP server (`192.168.100.1` pool), and broadcasts SSID when USB PPP is disconnected.
+    - Disable Hotspot (`AT+WIFI=0`): Shuts down Broadcom radio co-processor entirely.
+  - **Hardware State Detection & Mutual Exclusion**:
+    - Query physical transmitter register `AT^WIENABLE?` to determine true RF status.
+    - When USB PPP is connected (`ppp0` active), the baseband mutes Wi-Fi transmission (`^WIENABLE: 0`) to enforce the 500mA USB power budget and single-PDN routing. The UI displays `⏸️ SUSPENDED (USB PPP Active - Radio Muted)`.
+    - When USB PPP is disconnected and `AT+WIFI=1`, the baseband automatically restores transmitter power (`^WIENABLE: 1`), and the Wi-Fi AP resumes beaconing within 3–5 seconds without reboot.
+  - Power-saving benefit: Turning Wi-Fi OFF entirely (`AT+WIFI=0`) saves 200–300 mA of USB bus power when running mobile on laptop battery.
 - **FR-2.2: SSID & WPA2 Passphrase Management**:
   - Query current SSID with `AT^SSID?` and WPA2 Pre-Shared Key with `AT^WFPWD?`.
   - Configure new SSID (`AT^SSID="<NewSSID>"`) and passphrase (`AT^WFPWD="<NewPassword>"`).
   - Enforce WPA2 standard password rules (minimum 8 characters, maximum 63 characters).
+  - Note hardware quirk: Broadcom firmware automatically appends the last 3 hex characters of the BSSID (e.g. `62C`).
   - Provide a "Show/Hide Password" eye-toggle in the UI.
 - **FR-2.3: Baseband NVRAM Permanent Commit**:
   - Issue `AT+WRWIFI` to flush modified Wi-Fi configuration directly to persistent flash NVRAM, surviving physical power cycles.
 - **FR-2.4: Wi-Fi RF Diagnostics**:
+  - Read physical transmitter status (`AT^WIENABLE?` ➔ `1 = Transmitting`, `0 = Muted / Suspended`).
   - Read operational mode (`AT^WIMODE?` ➔ `4 = AP Mode`).
   - Read frequency band (`AT^WIBAND?` ➔ `0 = 2.4 GHz`).
   - Read active channel and frequency (`AT^WIFREQ?` ➔ `2412 MHz = Channel 1`, `2462 MHz = Channel 11`).
@@ -522,8 +528,8 @@ When plugged into any fresh or disconnected Linux PC:
 |                  |                                                                    |
 | [🔧] Diagnostics |  BROADCOM WI-FI HOTSPOT                                            |
 |                  |  +--------------------------------------------------------------+  |
-| [📖] Lore & Info |  | Wi-Fi Radio: 🟢 BROADCASTING (Dual-Mode Active)             |  |
-|                  |  | SSID: TypeScript 420           Security: WPA2-PSK            |  |
+| [📖] Lore & Info |  | Wi-Fi Radio: ⏸️ SUSPENDED (USB PPP Active - Radio Muted)   |  |
+|                  |  | SSID: TypeScript 42062C        Security: WPA2-PSK            |  |
 |                  |  | Passphrase: [ ********** ] (👁) Channel: 11 (2.462 GHz)      |  |
 |                  |  +--------------------------------------------------------------+  |
 |                  |  [ Turn Wi-Fi Off (Save 300mA) ]   [ Edit Wi-Fi Settings ]         |
@@ -653,7 +659,7 @@ MisLTy must be distributed in four complementary formats:
 | :--- | :--- | :--- | :--- | :--- |
 | `TC-DATA-01` | Cellular Data | 1-Click Default Gateway | Run `mislty connect --default` or click Connect in UI. | `ppp0` interface is created, IP assigned (`10.x.x.x`), `ip route show` displays `default via ppp0`. Internet reachable. |
 | `TC-DATA-02` | Cellular Data | Secondary Split Route | Run `mislty connect` without default route flag. | `ppp0` created, host Wi-Fi route remains default gateway. `curl --interface ppp0 https://icanhazip.com` returns cellular IP. |
-| `TC-WIFI-01` | Wi-Fi Deck | Concurrent Dual-Mode | Connect host via USB PPP while Wi-Fi clients stream video. | Both interfaces operate simultaneously without packet loss or interface drops. |
+| `TC-WIFI-01` | Wi-Fi Deck | Mode Mutual Exclusion | Connect host via USB PPP (`mislty connect`). Observe Wi-Fi broadcast and status. | `AT^WIENABLE?` drops to `0`, Wi-Fi SSID ceases OTA broadcast during active PPP session, status displays `SUSPENDED`. On `mislty disconnect`, Wi-Fi resumes broadcast within 3–5 seconds. |
 | `TC-WIFI-02` | Wi-Fi Deck | Hotspot Power Down | Click "Turn Wi-Fi Off" or run `mislty wifi off`. | Dongle issues `AT+WIFI=0`. Wi-Fi beacon vanishes OTA, USB power draw drops by ~250mA. |
 | `TC-WIFI-03` | Wi-Fi Deck | NVRAM Persist | Change SSID/Password and click Save. Power cycle dongle. | On cold reboot, `AT^SSID?` and `AT^WFPWD?` return the newly configured credentials. |
 | `TC-SMS-01` | SMS Suite | Real-Time Inbound Alert | Send SMS from external mobile phone to dongle SIM. | Daemon detects `+CMTI` on `MI_01` within 500ms, raises desktop notification, and appends message to chat bubble. |

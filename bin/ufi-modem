@@ -183,12 +183,24 @@ def get_status():
     print(f"🔗 Network Status:   {reg_state}")
     print(f"⚙️  Current APN:      {apn_str}")
 
+    # PPP Connection Status
+    ppp_status = subprocess.run(["ip", "a", "show", "ppp0"], capture_output=True, text=True)
+    is_connected = ppp_status.returncode == 0 and "inet " in ppp_status.stdout
+    ip_addr = "N/A"
+    if is_connected:
+        for line in ppp_status.stdout.splitlines():
+            if "inet " in line:
+                ip_addr = line.strip().split()[1]
+
     # Wi-Fi State
     wifi = send_at_command("AT+WIFI?", port)
+    wienable = send_at_command("AT^WIENABLE?", port)
     ssid = send_at_command("AT^SSID?", port)
     pwd = send_at_command("AT^WFPWD?", port)
 
-    wifi_on = "+WIFI:1" in wifi
+    wifi_pref = "+WIFI:1" in wifi
+    rf_transmitting = "^WIENABLE:1" in wienable.replace(" ", "")
+
     ssid_str = "TypeScript 420"
     for line in ssid.splitlines():
         if "wl_ssid" in line:
@@ -200,20 +212,20 @@ def get_status():
         if "wl_wpa_psk_key" in line:
             pwd_str = line.split("=", 1)[-1].strip()
 
+    if wifi_pref and rf_transmitting:
+        wifi_display = "🟢 ACTIVE (Broadcasting)"
+    elif wifi_pref and not rf_transmitting:
+        if is_connected:
+            wifi_display = "⏸️  SUSPENDED (USB PPP Active - Radio Muted)"
+        else:
+            wifi_display = "⏸️  SUSPENDED / INITIALIZING"
+    else:
+        wifi_display = "⚪ DISABLED (USB Modem Only)"
+
     print("--------------------------------------------------------")
-    print(f"📻 Wi-Fi AP Mode:    {'🟢 ACTIVE (Broadcasting)' if wifi_on else '⚪ DISABLED (USB Modem Mode)'}")
+    print(f"📻 Wi-Fi AP Mode:    {wifi_display}")
     print(f"🏷️  Wi-Fi SSID:       {ssid_str}")
     print(f"🔑 Wi-Fi Password:   {pwd_str}")
-
-    # PPP Connection Status
-    ppp_status = subprocess.run(["ip", "a", "show", "ppp0"], capture_output=True, text=True)
-    is_connected = ppp_status.returncode == 0 and "inet " in ppp_status.stdout
-    ip_addr = "N/A"
-    if is_connected:
-        for line in ppp_status.stdout.splitlines():
-            if "inet " in line:
-                ip_addr = line.strip().split()[1]
-
     print("--------------------------------------------------------")
     print(f"💻 USB PPP Link:     {'🟢 CONNECTED' if is_connected else '⚪ DISCONNECTED'}")
     if is_connected:
@@ -229,10 +241,15 @@ def wifi_control(action, param=None):
     if action == "on":
         print("🔄 Turning ON Wi-Fi router mode...")
         resp = send_at_command("AT+WIFI=1", port)
-        if "OK" in resp:
-            print("✅ Wi-Fi radio is now ON and broadcasting.")
+        ppp_status = subprocess.run(["ip", "a", "show", "ppp0"], capture_output=True, text=True)
+        if ppp_status.returncode == 0 and "inet " in ppp_status.stdout:
+            print("✅ Wi-Fi router mode enabled in NVRAM.")
+            print("ℹ️  Note: USB PPP link is currently active. Wi-Fi RF broadcast will resume when PPP disconnects (hardware mutual exclusion).")
         else:
-            print(f"⚠️ Response: {resp}")
+            if "OK" in resp:
+                print("✅ Wi-Fi radio is now ON and broadcasting.")
+            else:
+                print(f"⚠️ Response: {resp}")
     elif action == "off":
         print("🔄 Turning OFF Wi-Fi router mode...")
         resp = send_at_command("AT+WIFI=0", port)

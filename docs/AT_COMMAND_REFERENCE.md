@@ -100,9 +100,10 @@ The onboard Broadcom Wi-Fi chip exposes a complete dedicated command group:
 
 | Command | Type | Description | Example / Notes |
 | :--- | :--- | :--- | :--- |
-| `AT+WIFI?` | Query | Current Wi-Fi radio power state | `+WIFI:1` (`1`=ON, `0`=OFF) |
+| `AT+WIFI?` | Query | Current Wi-Fi radio power state (NVRAM preference) | `+WIFI:1` (`1`=ON, `0`=OFF) |
 | `AT+WIFI=1` | Set | Turn ON Wi-Fi radio & broadcast AP | `OK` |
 | `AT+WIFI=0` | Set | Turn OFF Wi-Fi radio (Pure USB mode) | `OK` |
+| `AT^WIENABLE?` | Query | Physical Broadcom RF transmitter state | `^WIENABLE:1` (Active broadcast) or `^WIENABLE:0` (Muted during USB PPP) |
 | `AT^SSID?` | Query | Current Wi-Fi SSID | `^SSID: wl_ssid="TypeScript 420"62C` |
 | `AT^SSID="<name>"` | Set | Configure Wi-Fi SSID | `OK` |
 | `AT^WRSSID?` | Query | Read NVRAM-stored SSID | `^WRSSID: wl_ssid=...` |

@@ -99,17 +99,33 @@ Unlike newer RNDIS/CDC-ECM LTE dongles that implement virtual Ethernet MAC encap
 
 ---
 
-### 4. Wi-Fi Router Co-Processor Protocol
+### 4. Wi-Fi Router Co-Processor Protocol & Operational Modes
 
 The Broadcom Wi-Fi radio is managed entirely through Qualcomm baseband AT commands prefixed with `AT^WI...` or `AT+WIFI`:
 
-#### 4.1 Radio Power States
-- **`AT+WIFI=1`**: Boots the Broadcom co-processor, enables the 2.4 GHz radio, launches the internal DHCP server (`192.168.100.1` subnet), and begins broadcasting the configured SSID.
+#### 4.1 Radio Power States & Hardware Status Registers
+- **`AT+WIFI=1`**: Configures the Wi-Fi subsystem to enabled in baseband NVRAM. Launches the internal DHCP server (`192.168.100.1` subnet) and enables the Broadcom co-processor.
 - **`AT+WIFI=0`**: Powers down the Broadcom Wi-Fi radio and stops all Wi-Fi RF emissions. Saves approximately 200–300 mA of USB power draw.
+- **`AT^WIENABLE?`**: Queries the physical Broadcom RF transmitter hardware status:
+  - `^WIENABLE: 1`: Wi-Fi transmitter is actively broadcasting beacon frames and handling client associations (Pocket Router Mode).
+  - `^WIENABLE: 0`: Wi-Fi transmitter is muted / suspended (USB Tethered Modem Mode).
 
-#### 4.2 Wi-Fi Credential Management
+#### 4.2 Hardware Mutual Exclusion (Pocket Router vs. USB Tethered Modem)
+As verified empirically on live hardware and confirmed by OEM Windows binaries (`[DlgSetMode]`), the device enforces strict mutual exclusion between Wi-Fi AP transmission and USB PPP data:
+1. When `ATD*99#` connects on `/dev/ttyUSB0` and IPCP establishes `ppp0`, the Qualcomm baseband immediately clamps `AT^WIENABLE?` to `0`. The Wi-Fi SSID disappears over the air.
+2. Even if `AT+WIFI?` reports `+WIFI:1`, the radio is in hardware suspension to honor the USB 2.0 500mA power ceiling and single-PDN routing architecture.
+3. When `ppp0` is torn down, the baseband automatically restores `AT^WIENABLE=1`, and the Wi-Fi AP resumes broadcasting within 3–5 seconds without a reboot.
+4. Full architectural details and state machines are documented in [OPERATIONAL_MODES.md](file:///home/psl/Projects/ufi-modem/docs/OPERATIONAL_MODES.md).
+
+#### 4.3 Wi-Fi Credential Management
 - **Query SSID**: `AT^SSID?` -> returns `^SSID: wl_ssid=<SSID>`
-- **Set SSID**: `AT^SSID="<SSID>"`
+- **Set SSID**: `AT^SSID="<SSID>"` (Note: Broadcom firmware automatically appends the last 3 hex characters of the MAC address, e.g. `62C`).
 - **Query WPA2 Key**: `AT^WFPWD?` -> returns `^WFPWD: wl_wpa_psk_key=<PASSWORD>`
 - **Set WPA2 Key**: `AT^WFPWD="<PASSWORD>"`
 - **Save to NVRAM**: `AT+WRWIFI`
+
+#### 4.4 Broadcom Diagnostic Registers
+- **Operational Mode**: `AT^WIMODE?` -> returns `^WIMODE: 4` (Access Point Mode)
+- **Band**: `AT^WIBAND?` -> returns `^WIBAND: 0` (2.4 GHz)
+- **Frequency**: `AT^WIFREQ?` -> returns `^WIFREQ: 2462` (Channel 11 / 2462 MHz)
+- **Command Help**: `AT^WIHELP` -> lists all Broadcom handler functions.

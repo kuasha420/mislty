@@ -16,7 +16,7 @@ In 2026, one such forgotten device was pulled from storage for a weekend deep-di
 - **Board Code**: Aleka Incorporated, Project `MDM9600 UV310` (HW Rev `UV310-U-5.1 CGWL`).
 - **The "Siemens SG75" Mystery**: A historical entry in `/usr/share/hwdata/usb.ids` for PID `05c6:6000` which Qualcomm reused as a reference modem ID.
 - **Recovered Wi-Fi Credentials & The Feline Origin**: The forgotten WPA2 password (`misty-6969`) was recovered directly from baseband NVRAM via `AT^WFPWD?`. In 2018, the founder adopted their first cat, **Misty**—sparking a feline fascination that eventually gave birth to **Purrfect Software Limited (PSL)**, where Misty now reigns as the *Keeper of Wisdom* across the Purrfect Universe. That password was the very last credential configured on this dongle before it was consigned to a drawer of obsolete tech when its owner made the leap to Linux.
-- **The Simultaneous Mode Discovery**: The device supports **simultaneous dual-mode operation**—providing low-latency USB PPP connectivity to the host PC while broadcasting its Wi-Fi AP to other devices at the same time.
+- **The Two Operational Modes Discovery**: Ground-truth hardware register probing (`AT^WIENABLE?`) and OEM Windows software reverse-engineering (`[DlgSetMode]`) proved that the hardware operates in **two mutually exclusive modes**: standalone **Pocket Router Mode** (autonomous Wi-Fi AP) and direct **USB Tethered Modem Mode** (direct high-speed `ppp0` link for the host PC). The internal Broadcom Wi-Fi radio is suspended during active USB PPP sessions to respect the 500mA USB 2.0 power ceiling and single-PDN baseband routing.
 - **The Name `MisLTy`**: 
   - `Misty`: The beloved feline Keeper of Wisdom whose name cracked open the radio NVRAM.
   - `LTE`: The high-speed 4G data backbone running at full signal.
@@ -35,7 +35,7 @@ ufi-modem/
 │   ├── SOFTWARE_SPEC.md                # USB enumeration, PPP data plane & Wi-Fi control
 │   ├── AT_COMMAND_REFERENCE.md         # Comprehensive dictionary of ~150 AT commands
 │   ├── LINUX_COMPATIBILITY_GUIDE.md    # Analysis of the 2015 failure & ModemManager crash
-│   ├── SIMULTANEOUS_MODE.md            # Dual-mode analysis: USB PPP + Wi-Fi AP concurrency
+│   ├── OPERATIONAL_MODES.md            # Architecture: Pocket Router vs. USB Tethered Modem
 │   ├── VOICE_CALL_ANALYSIS.md          # Audio PCM architecture & LTE carrier CSFB analysis
 │   ├── SD_CARD_SPEC.md                 # 32GB SDHC storage & offline self-install deployment
 │   └── ZEROCD_ANALYSIS.md              # Reverse-engineered Windows ISO & installer assets
@@ -114,7 +114,7 @@ ufi-modem at "AT^SSID?"
   - Trace USB descriptors and ZeroCD switching.
   - Map serial ports and endpoints.
   - Document complete AT command set.
-  - Verify simultaneous Wi-Fi AP + USB PPP data mode.
+  - Verify operational modes (Pocket Router vs. USB Modem) and mutual exclusion behavior.
 - [x] **Phase 2: Core Tooling & Permissions**
   - Standalone `ufi-modem` Python CLI.
   - udev rules and cellular-optimized PPP scripts.

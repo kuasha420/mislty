@@ -63,6 +63,15 @@ This device is a multi-mode 4G LTE/3G cellular USB modem and portable Wi-Fi rout
 - **Card Reader**: Push-pull slot for MicroSD / MicroSDHC (tested functional with 32 GB FAT32 media).
 - **SCSI Emulation**: Bulk-Only Transport (BBB) SCSI device class `0x08`, Subclass `0x06`.
 
+#### 3.4 Power Budget & Operational Mutual Exclusion
+- **USB 2.0 500mA Ceiling**: The dongle operates within the standard USB 2.0 current limit of 500 mA (at 5.0V DC).
+  - Qualcomm MDM9600 LTE PA: ~350–450 mA during active Cat-3 cellular transmission.
+  - Broadcom 802.11n Wi-Fi PA: ~200–250 mA during RF broadcast.
+- **Hardware Mutual Exclusion**: Operating both power amplifiers simultaneously at full power would draw 650–800 mA, triggering host USB overcurrent shutdown or brownouts. Consequently, the firmware enforces mutual exclusion:
+  - When the USB PPP link is established, the baseband hardware mutes the Broadcom RF transmitter (`AT^WIENABLE?` forced to `0`).
+  - When the USB PPP link is disconnected, the Broadcom RF transmitter is restored to broadcast (`AT^WIENABLE?` restored to `1`).
+  - See [OPERATIONAL_MODES.md](file:///home/psl/Projects/ufi-modem/docs/OPERATIONAL_MODES.md) for detailed architecture.
+
 ---
 
 ### 4. RF & Band Capabilities
