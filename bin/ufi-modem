@@ -18,61 +18,73 @@ DEFAULT_PORTS = ["/dev/ttyUSB0", "/dev/ttyUSB1"]
 CHAT_FILE = "/etc/ppp/chat-ufi"
 PEER_FILE = "/etc/ppp/peers/ufi"
 
-def find_at_port():
-    ports = sorted(glob.glob("/dev/ttyUSB*"))
-    for port in ports:
-        try:
-            fd = os.open(port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
-            tty.setraw(fd)
-            attrs = termios.tcgetattr(fd)
-            attrs[4] = termios.B115200
-            attrs[5] = termios.B115200
-            termios.tcsetattr(fd, termios.TCSANOW, attrs)
-            termios.tcflush(fd, termios.TCIOFLUSH)
-            os.write(fd, b"AT\r\n")
-            time.sleep(0.12)
-            r, _, _ = select.select([fd], [], [], 0.3)
-            if r:
-                res = os.read(fd, 512)
-                if b"OK" in res:
-                    os.close(fd)
-                    return port
-            os.close(fd)
-        except Exception:
-            pass
+def find_at_port(retries=3, delay=0.5):
+    for attempt in range(retries):
+        ports = sorted(glob.glob("/dev/ttyUSB*"))
+        for port in ports:
+            try:
+                fd = os.open(port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+                tty.setraw(fd)
+                attrs = termios.tcgetattr(fd)
+                attrs[4] = termios.B115200
+                attrs[5] = termios.B115200
+                termios.tcsetattr(fd, termios.TCSANOW, attrs)
+                termios.tcflush(fd, termios.TCIOFLUSH)
+                os.write(fd, b"AT\r\n")
+                time.sleep(0.12)
+                r, _, _ = select.select([fd], [], [], 0.3)
+                if r:
+                    res = os.read(fd, 512)
+                    if b"OK" in res:
+                        os.close(fd)
+                        return port
+                os.close(fd)
+            except Exception:
+                pass
+        if attempt < retries - 1:
+            time.sleep(delay)
     return None
 
-def send_at_command(cmd, port=None, timeout=1.8):
-    if not port:
-        port = find_at_port()
-    if not port:
-        raise RuntimeError("No responding Qualcomm AT port (/dev/ttyUSB*) found!")
+def send_at_command(cmd, port=None, timeout=2.0, retries=2):
+    for attempt in range(retries):
+        target_port = port if port else find_at_port()
+        if not target_port:
+            if attempt < retries - 1:
+                time.sleep(0.6)
+                continue
+            raise RuntimeError("No responding Qualcomm AT port (/dev/ttyUSB*) found!")
 
-    fd = os.open(port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
-    try:
-        tty.setraw(fd)
-        attrs = termios.tcgetattr(fd)
-        attrs[4] = termios.B115200
-        attrs[5] = termios.B115200
-        termios.tcsetattr(fd, termios.TCSANOW, attrs)
-        termios.tcflush(fd, termios.TCIOFLUSH)
+        try:
+            fd = os.open(target_port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+            try:
+                tty.setraw(fd)
+                attrs = termios.tcgetattr(fd)
+                attrs[4] = termios.B115200
+                attrs[5] = termios.B115200
+                termios.tcsetattr(fd, termios.TCSANOW, attrs)
+                termios.tcflush(fd, termios.TCIOFLUSH)
 
-        cmd_bytes = (cmd.strip() + "\r\n").encode()
-        os.write(fd, cmd_bytes)
+                cmd_bytes = (cmd.strip() + "\r\n").encode()
+                os.write(fd, cmd_bytes)
 
-        out = b""
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            r, _, _ = select.select([fd], [], [], 0.2)
-            if r:
-                chunk = os.read(fd, 4096)
-                if chunk:
-                    out += chunk
-                    if b"OK\r\n" in out or b"ERROR" in out:
-                        break
-        return out.decode("latin1", errors="replace").strip()
-    finally:
-        os.close(fd)
+                out = b""
+                start_time = time.time()
+                while time.time() - start_time < timeout:
+                    r, _, _ = select.select([fd], [], [], 0.2)
+                    if r:
+                        chunk = os.read(fd, 4096)
+                        if chunk:
+                            out += chunk
+                            if b"OK\r\n" in out or b"ERROR" in out:
+                                break
+                return out.decode("latin1", errors="replace").strip()
+            finally:
+                os.close(fd)
+        except Exception:
+            if attempt < retries - 1:
+                time.sleep(0.5)
+                continue
+            raise
 
 def get_status():
     port = find_at_port()
@@ -180,7 +192,8 @@ def get_status():
     ssid_str = "TypeScript 420"
     for line in ssid.splitlines():
         if "wl_ssid" in line:
-            ssid_str = line.split("=", 1)[-1].strip()
+            raw_ssid = line.split("=", 1)[-1].strip()
+            ssid_str = raw_ssid.strip('"').strip("'")
 
     pwd_str = "Unknown"
     for line in pwd.splitlines():
@@ -207,7 +220,7 @@ def get_status():
         print(f"🌍 Host IP Address:  {ip_addr}")
     print("========================================================")
 
-def wifi_control(action):
+def wifi_control(action, param=None):
     port = find_at_port()
     if not port:
         print("❌ Modem port not found!")
@@ -227,6 +240,31 @@ def wifi_control(action):
             print("✅ Wi-Fi radio is now OFF (Power saving / USB modem only).")
         else:
             print(f"⚠️ Response: {resp}")
+    elif action == "ssid":
+        if not param:
+            print("⚠️ Usage: ufi-modem wifi ssid <name>")
+            return
+        clean_ssid = param.strip().strip('"').strip("'")
+        print(f"🔄 Setting Wi-Fi SSID to: '{clean_ssid}'...")
+        resp = send_at_command(f"AT^SSID={clean_ssid}", port)
+        time.sleep(2)
+        send_at_command("AT+WRWIFI")
+        print("🔄 Cycling Wi-Fi radio to broadcast new SSID...")
+        send_at_command("AT+WIFI=0")
+        time.sleep(1)
+        send_at_command("AT+WIFI=1")
+        print("✅ SSID updated and saved to NVRAM.")
+        print("   Note: Hardware firmware automatically appends the unique 3-char BSSID hex suffix.")
+    elif action == "password":
+        if not param:
+            print("⚠️ Usage: ufi-modem wifi password <key>")
+            return
+        clean_pwd = param.strip().strip('"').strip("'")
+        print(f"🔄 Setting Wi-Fi WPA2 password...")
+        resp = send_at_command(f'AT^WFPWD="{clean_pwd}"', port)
+        time.sleep(1)
+        send_at_command("AT+WRWIFI")
+        print("✅ Password updated and saved to NVRAM.")
 
 def set_apn(apn):
     port = find_at_port()
@@ -273,15 +311,21 @@ def connect_ppp(default_route=False):
     time.sleep(0.5)
 
     route_opt = "defaultroute replacedefaultroute" if default_route else "nodefaultroute"
+    dns_opt = "usepeerdns" if default_route else ""
     peer_content = f"""{port}
 115200
 connect "/usr/bin/chat -v -f {CHAT_FILE}"
 noauth
 {route_opt}
-usepeerdns
+{dns_opt}
+noccp
+novj
+novjccomp
+noipv6
+noipx
 persist
 maxfail 5
-holdoff 3
+holdoff 2
 debug
 crtscts
 lock
@@ -302,8 +346,8 @@ ipcp-accept-remote
     subprocess.Popen(["sudo", "pppd", "call", "ufi"])
 
     print("⏳ Waiting for IP allocation...")
-    for _ in range(12):
-        time.sleep(1)
+    for _ in range(40):
+        time.sleep(0.5)
         res = subprocess.run(["ip", "a", "show", "ppp0"], capture_output=True, text=True)
         if res.returncode == 0 and "inet " in res.stdout:
             for line in res.stdout.splitlines():
@@ -311,8 +355,11 @@ ipcp-accept-remote
                     ip_addr = line.strip().split()[1]
                     print(f"🎉 Connected! Allocated IP: {ip_addr}")
                     if not default_route:
-                        print("ℹ️ Connected in secondary interface mode (nodefaultroute).")
-                        print("   Test with: curl --interface ppp0 https://icanhazip.com")
+                        print("ℹ️ Connected in secondary interface mode (nodefaultroute, local DNS preserved).")
+                        print("   Existing Wi-Fi & LAN connections remain active and default.")
+                        print("   Test cellular route with: curl --interface ppp0 https://icanhazip.com")
+                    else:
+                        print("ℹ️ Connected as primary default gateway (defaultroute + carrier DNS).")
                     return
     print("⚠️ Connection started, but ppp0 IP not assigned yet. Check 'ufi-modem status'.")
 
@@ -323,6 +370,9 @@ def disconnect_ppp():
     port = find_at_port()
     if port:
         send_at_command("ATH", port)
+    # Restore any orphaned resolv.conf backup if left by previous runs
+    if os.path.exists("/etc/resolv.conf.backup.ppp0"):
+        subprocess.run(["sudo", "mv", "/etc/resolv.conf.backup.ppp0", "/etc/resolv.conf"], capture_output=True)
     print("✅ Disconnected.")
 
 def list_sms():
@@ -414,8 +464,9 @@ def main():
 
     subparsers.add_parser("status", help="Show modem, SIM, Wi-Fi, and network status")
 
-    wifi_p = subparsers.add_parser("wifi", help="Control Wi-Fi radio")
-    wifi_p.add_argument("action", choices=["on", "off", "status"], help="Wi-Fi action")
+    wifi_p = subparsers.add_parser("wifi", help="Control Wi-Fi radio and configuration")
+    wifi_p.add_argument("action", choices=["on", "off", "status", "ssid", "password"], help="Wi-Fi action")
+    wifi_p.add_argument("param", nargs="?", default=None, help="SSID name or password value")
 
     apn_p = subparsers.add_parser("apn", help="Set cellular APN")
     apn_p.add_argument("name", help="APN name (e.g. internet, wap, gpinternet)")
@@ -447,7 +498,7 @@ def main():
         if args.action == "status":
             get_status()
         else:
-            wifi_control(args.action)
+            wifi_control(args.action, args.param)
     elif args.command == "apn":
         set_apn(args.name)
     elif args.command == "connect":
