@@ -30,6 +30,7 @@ In 2026, one such forgotten device was pulled from storage for a weekend deep-di
 ufi-modem/
 ├── README.md                           # Project overview, lore, and quickstart
 ├── docs/
+│   ├── PRD.md                          # Product Requirement Document (v1.0 Desktop & Toolkit)
 │   ├── HARDWARE_SPEC.md                # Complete board architecture, pinout & RF specs
 │   ├── SOFTWARE_SPEC.md                # USB enumeration, PPP data plane & Wi-Fi control
 │   ├── AT_COMMAND_REFERENCE.md         # Comprehensive dictionary of ~150 AT commands
