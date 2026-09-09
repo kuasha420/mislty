@@ -55,6 +55,9 @@ def build_parser() -> argparse.ArgumentParser:
     # at
     p_at = subparsers.add_parser("at", help="Send raw Hayes AT command to modem")
     p_at.add_argument("command", help="Raw AT command string (e.g. 'AT+CSQ')")
+    p_at.add_argument("-t", "--timeout", type=float, default=3.0, help="Command timeout in seconds (default: 3.0)")
+    p_at.add_argument("-p", "--port", default=None, help="Explicit serial port (defaults to resolved control port)")
+    p_at.add_argument("--json", action="store_true", help="Output response in structured JSON format")
 
     # ports
     p_ports = subparsers.add_parser("ports", help="Resolve and inspect modem hardware endpoints")
@@ -82,7 +85,40 @@ def main(args=None):
             print(ports)
         sys.exit(0 if ports.is_ready else 1)
 
+    if parsed.subcommand == "at":
+        import json
+        from mislty.core.port_resolver import PortResolver
+        from mislty.core.serial_transport import SerialTransport
+        from mislty.core.at_parser import AtDispatcher
+
+        port_path = parsed.port
+        if not port_path:
+            resolver = PortResolver()
+            ports = resolver.resolve()
+            if not ports.control or not ports.control.exists():
+                print("Error: Modem control port not found.", file=sys.stderr)
+                sys.exit(1)
+            port_path = ports.control
+
+        transport = SerialTransport(port_path, timeout=parsed.timeout)
+        dispatcher = AtDispatcher(transport)
+        resp = dispatcher.execute(parsed.command, timeout=parsed.timeout)
+
+        if parsed.json:
+            print(json.dumps(resp.as_dict(), indent=2))
+        else:
+            if resp.lines:
+                for line in resp.lines:
+                    print(line)
+            if not resp.success:
+                err = resp.error or "ERROR"
+                detail = f" ({resp.error_detail})" if resp.error_detail else ""
+                print(f"{err}{detail}", file=sys.stderr)
+
+        sys.exit(0 if resp.success else 1)
+
     print(f"mislty: subcommand '{parsed.subcommand}' called (pipeline active).")
+
 
 
 if __name__ == "__main__":
