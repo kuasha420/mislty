@@ -60,6 +60,12 @@ class MisltyBridge(QObject):
     isDaemonRunningChanged = Signal(bool)
     transportModeChanged = Signal(str)
     statusMessageChanged = Signal(str)
+    dnsServersChanged = Signal(list)
+    peerIpChanged = Signal(str)
+    trafficHistoryRxChanged = Signal(list)
+    trafficHistoryTxChanged = Signal(list)
+    peakRxRateChanged = Signal(float)
+    peakTxRateChanged = Signal(float)
     smsThreadsChanged = Signal(list)
     smsMessagesChanged = Signal(list)
 
@@ -90,6 +96,12 @@ class MisltyBridge(QObject):
         self._is_daemon_running: bool = False
         self._transport_mode: str = self._client.active_transport
         self._status_message: str = "Ready"
+        self._dns_servers: List[str] = []
+        self._peer_ip: str = ""
+        self._traffic_history_rx: List[float] = [0.0] * 24
+        self._traffic_history_tx: List[float] = [0.0] * 24
+        self._peak_rx_rate: float = 0.0
+        self._peak_tx_rate: float = 0.0
         self._sms_threads: List[Dict[str, Any]] = []
         self._sms_messages: List[Dict[str, Any]] = []
 
@@ -329,6 +341,66 @@ class MisltyBridge(QObject):
             self._sms_messages = value
             self.smsMessagesChanged.emit(value)
 
+    @Property(list, notify=dnsServersChanged)
+    def dnsServers(self) -> list:
+        return self._dns_servers
+
+    @dnsServers.setter
+    def dnsServers(self, value: list) -> None:
+        if self._dns_servers != value:
+            self._dns_servers = value
+            self.dnsServersChanged.emit(value)
+
+    @Property(str, notify=peerIpChanged)
+    def peerIp(self) -> str:
+        return self._peer_ip
+
+    @peerIp.setter
+    def peerIp(self, value: str) -> None:
+        if self._peer_ip != value:
+            self._peer_ip = value
+            self.peerIpChanged.emit(value)
+
+    @Property(list, notify=trafficHistoryRxChanged)
+    def trafficHistoryRx(self) -> list:
+        return self._traffic_history_rx
+
+    @trafficHistoryRx.setter
+    def trafficHistoryRx(self, value: list) -> None:
+        if self._traffic_history_rx != value:
+            self._traffic_history_rx = value
+            self.trafficHistoryRxChanged.emit(value)
+
+    @Property(list, notify=trafficHistoryTxChanged)
+    def trafficHistoryTx(self) -> list:
+        return self._traffic_history_tx
+
+    @trafficHistoryTx.setter
+    def trafficHistoryTx(self, value: list) -> None:
+        if self._traffic_history_tx != value:
+            self._traffic_history_tx = value
+            self.trafficHistoryTxChanged.emit(value)
+
+    @Property(float, notify=peakRxRateChanged)
+    def peakRxRate(self) -> float:
+        return self._peak_rx_rate
+
+    @peakRxRate.setter
+    def peakRxRate(self, value: float) -> None:
+        if self._peak_rx_rate != value:
+            self._peak_rx_rate = value
+            self.peakRxRateChanged.emit(value)
+
+    @Property(float, notify=peakTxRateChanged)
+    def peakTxRate(self) -> float:
+        return self._peak_tx_rate
+
+    @peakTxRate.setter
+    def peakTxRate(self, value: float) -> None:
+        if self._peak_tx_rate != value:
+            self._peak_tx_rate = value
+            self.peakTxRateChanged.emit(value)
+
     # -----------------------------------------------------------------------
     # Status Ingestion & Telemetry Processing
     # -----------------------------------------------------------------------
@@ -339,7 +411,7 @@ class MisltyBridge(QObject):
         cellular = stat.get("cellular_ppp", {})
         wifi = stat.get("wifi", {})
 
-        is_connected = bool(cellular.get("is_connected", False))
+        is_connected = bool(cellular.get("connected", cellular.get("is_connected", False)))
         self.connected = is_connected
         self.isDaemonRunning = bool(daemon.get("is_running", False))
         self.transportMode = self._client.active_transport
@@ -347,6 +419,8 @@ class MisltyBridge(QObject):
         # Cellular details
         ip = cellular.get("ip_address") or ""
         self.ipAddress = ip
+        self.peerIp = cellular.get("peer_ip") or ""
+        self.dnsServers = cellular.get("dns_servers") or []
 
         # Carrier & RF Signal
         csq = daemon.get("rssi") or 0
@@ -382,6 +456,22 @@ class MisltyBridge(QObject):
             self.rxRate = 0.0
             self.txRate = 0.0
 
+        if self.rxRate > self.peakRxRate:
+            self.peakRxRate = self.rxRate
+        if self.txRate > self.peakTxRate:
+            self.peakTxRate = self.txRate
+
+        # Append to sparkline traffic history (in KB/s)
+        self._traffic_history_rx.append(self.rxRate / 1024.0)
+        if len(self._traffic_history_rx) > 24:
+            self._traffic_history_rx.pop(0)
+        self.trafficHistoryRx = list(self._traffic_history_rx)
+
+        self._traffic_history_tx.append(self.txRate / 1024.0)
+        if len(self._traffic_history_tx) > 24:
+            self._traffic_history_tx.pop(0)
+        self.trafficHistoryTx = list(self._traffic_history_tx)
+
         self._last_poll_time = now
         self._last_rx_bytes = rx
         self._last_tx_bytes = tx
@@ -389,7 +479,10 @@ class MisltyBridge(QObject):
         self.txBytes = tx
 
         # Session Uptime Duration
-        if is_connected:
+        uptime = cellular.get("uptime_seconds", 0)
+        if is_connected and uptime > 0:
+            self.sessionDuration = int(uptime)
+        elif is_connected:
             if self._connected_start_time == 0.0:
                 self._connected_start_time = now
             self.sessionDuration = int(now - self._connected_start_time)

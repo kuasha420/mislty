@@ -2,3 +2,4 @@ Card 1.0 Card.qml
 StatusPill 1.0 StatusPill.qml
 SignalBars 1.0 SignalBars.qml
 FelineButton 1.0 FelineButton.qml
+BandwidthGraph 1.0 BandwidthGraph.qml
