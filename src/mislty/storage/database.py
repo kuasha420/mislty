@@ -84,12 +84,23 @@ class DatabaseManager:
             self.db_path = Path(db_path)
 
         self._is_memory = str(self.db_path) == ":memory:"
+        if self._is_memory:
+            self._connect_target = f"file:mem_{id(self)}?mode=memory&cache=shared"
+            self._use_uri = True
+        else:
+            self._connect_target = str(self.db_path)
+            self._use_uri = False
+
         self._local = threading.local()
         self._init_lock = threading.Lock()
         self._migrated = False
+        self._keepalive_conn: Optional[sqlite3.Connection] = None
 
         if not self._is_memory:
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            # Hold a persistent connection open so in-memory database persists across threads
+            self._keepalive_conn = sqlite3.connect(self._connect_target, uri=True)
 
         self.migrate()
 
@@ -100,9 +111,10 @@ class DatabaseManager:
         conn = getattr(self._local, "conn", None)
         if conn is None:
             conn = sqlite3.connect(
-                str(self.db_path),
+                self._connect_target,
                 timeout=10.0,
                 check_same_thread=False,
+                uri=self._use_uri,
             )
             conn.row_factory = sqlite3.Row
 
@@ -146,7 +158,7 @@ class DatabaseManager:
                 self._migrated = True
 
     def close(self) -> None:
-        """Close connection for current thread."""
+        """Close connection for current thread and release keepalive connection."""
         conn = getattr(self._local, "conn", None)
         if conn is not None:
             try:
@@ -154,3 +166,11 @@ class DatabaseManager:
             except sqlite3.Error:
                 pass
             self._local.conn = None
+
+        if self._keepalive_conn is not None:
+            try:
+                self._keepalive_conn.close()
+            except sqlite3.Error:
+                pass
+            self._keepalive_conn = None
+

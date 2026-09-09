@@ -142,9 +142,38 @@ class SignalChangeEvent(UrcEvent):
 
 
 @dataclass
+class SysinfoEvent(UrcEvent):
+    """
+    Qualcomm ^SYSINFO event: <srv_status>, <srv_domain>, <roam_status>, <sys_mode>, <sim_state>
+    """
+    srv_status: int = 0
+    srv_domain: int = 0
+    roam_status: int = 0
+    sys_mode: int = 0
+    sim_state: int = 0
+
+    @property
+    def technology(self) -> str:
+        mode_map = {
+            0: "NO SERVICE",
+            1: "AMPS",
+            2: "CDMA",
+            3: "GSM/GPRS",
+            4: "HDR",
+            5: "WCDMA/HSPA",
+            6: "GPS",
+            7: "GSM/WCDMA",
+            8: "LTE",
+            9: "LTE",
+        }
+        return mode_map.get(self.sys_mode, f"MODE_{self.sys_mode}")
+
+
+@dataclass
 class RawUrcEvent(UrcEvent):
     """Fallback event for unspecialized or vendor-specific URCs."""
     pass
+
 
 
 class UrcDemuxer:
@@ -276,11 +305,24 @@ class UrcDemuxer:
                 rssi=int(m_rssi.group(1)),
             )
 
-        # 8. Generic URC fallback if line starts with '+' or '^'
+        # 8. Qualcomm System info: ^SYSINFO: 2,3,0,5,1,,0
+        m_sys = re.match(r'^\^SYSINFO:\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)', line)
+        if m_sys:
+            return SysinfoEvent(
+                raw_line=line,
+                srv_status=int(m_sys.group(1)),
+                srv_domain=int(m_sys.group(2)),
+                roam_status=int(m_sys.group(3)),
+                sys_mode=int(m_sys.group(4)),
+                sim_state=int(m_sys.group(5)),
+            )
+
+        # 9. Generic URC fallback if line starts with '+' or '^'
         if line.startswith(("+", "^")):
             return RawUrcEvent(raw_line=line)
 
         return None
+
 
     def feed_line(self, raw_line: str) -> Optional[UrcEvent]:
         """
