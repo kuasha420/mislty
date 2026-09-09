@@ -66,10 +66,18 @@ class MisltyBridge(QObject):
     trafficHistoryTxChanged = Signal(list)
     peakRxRateChanged = Signal(float)
     peakTxRateChanged = Signal(float)
+    wifiStationsChanged = Signal(list)
+    operationalModeChanged = Signal(str)
+    isSwitchingModeChanged = Signal(bool)
     smsThreadsChanged = Signal(list)
     smsMessagesChanged = Signal(list)
 
-    def __init__(self, client: Optional[MisltyClient] = None, parent: Optional[QObject] = None) -> None:
+    def __init__(
+        self,
+        client: Optional[MisltyClient] = None,
+        qcwebs_client: Optional[Any] = None,
+        parent: Optional[QObject] = None,
+    ) -> None:
         super().__init__(parent)
         self._client: MisltyClient = client if client is not None else MisltyClient()
         self._poll_timer: Optional[QTimer] = None
@@ -102,8 +110,20 @@ class MisltyBridge(QObject):
         self._traffic_history_tx: List[float] = [0.0] * 24
         self._peak_rx_rate: float = 0.0
         self._peak_tx_rate: float = 0.0
+        self._wifi_stations: List[Dict[str, Any]] = []
+        self._operational_mode: str = "usb_modem"
+        self._is_switching_mode: bool = False
         self._sms_threads: List[Dict[str, Any]] = []
         self._sms_messages: List[Dict[str, Any]] = []
+
+        # QC-Webs Embedded Client and Mode Switcher
+        from mislty.net.qcwebs_client import QcWebsClient, SmartModeSwitcher
+        if qcwebs_client is not None:
+            self._qcwebs = qcwebs_client
+        else:
+            aux_netns = self._get_aux_netns()
+            self._qcwebs = QcWebsClient(netns=aux_netns)
+        self._mode_switcher = SmartModeSwitcher(qcwebs_client=self._qcwebs)
 
         # Internal Rate Tracking State
         self._last_poll_time: float = 0.0
@@ -401,6 +421,45 @@ class MisltyBridge(QObject):
             self._peak_tx_rate = value
             self.peakTxRateChanged.emit(value)
 
+    @Property(list, notify=wifiStationsChanged)
+    def wifiStations(self) -> list:
+        return self._wifi_stations
+
+    @wifiStations.setter
+    def wifiStations(self, value: list) -> None:
+        if self._wifi_stations != value:
+            self._wifi_stations = value
+            self.wifiStationsChanged.emit(value)
+
+    @Property(str, notify=operationalModeChanged)
+    def operationalMode(self) -> str:
+        return self._operational_mode
+
+    @operationalMode.setter
+    def operationalMode(self, value: str) -> None:
+        if self._operational_mode != value:
+            self._operational_mode = value
+            self.operationalModeChanged.emit(value)
+
+    @Property(bool, notify=isSwitchingModeChanged)
+    def isSwitchingMode(self) -> bool:
+        return self._is_switching_mode
+
+    @isSwitchingMode.setter
+    def isSwitchingMode(self, value: bool) -> None:
+        if self._is_switching_mode != value:
+            self._is_switching_mode = value
+            self.isSwitchingModeChanged.emit(value)
+
+    def _get_aux_netns(self) -> Optional[str]:
+        """Detect if auxiliary Wi-Fi interface is configured in an isolated network namespace."""
+        from mislty.core.port_resolver import PortResolver
+        try:
+            ports = PortResolver().resolve()
+            return ports.aux_wifi_netns
+        except Exception:
+            return None
+
     # -----------------------------------------------------------------------
     # Status Ingestion & Telemetry Processing
     # -----------------------------------------------------------------------
@@ -596,6 +655,93 @@ class MisltyBridge(QObject):
             except Exception as exc:
                 logger.error("Failed to set Wi-Fi credentials: %s", exc)
                 self.statusMessage = f"Wi-Fi config error: {exc}"
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return True
+
+    @Slot(str, str, int, result=bool)
+    @Slot(str, str, result=bool)
+    def saveWifiConfig(self, ssid: str, password: str, channel: int = 11) -> bool:
+        """Configure clean SSID and WPA2 passphrase via QC-Webs and commit to NVRAM."""
+        def _worker():
+            try:
+                ok_basic = self._qcwebs.set_wifi_basic(ssid=ssid, channel=channel)
+                ok_sec = True
+                if password:
+                    ok_sec = self._qcwebs.set_wifi_security(passphrase=password)
+                if not ok_basic or not ok_sec:
+                    self._client.set_wifi_credentials(ssid, password)
+                self.wifiSsid = ssid
+                self.statusMessage = f"Wi-Fi configured: {ssid} (Ch {channel})"
+            except Exception as exc:
+                logger.error("Failed to save Wi-Fi config: %s", exc)
+                self.statusMessage = f"Wi-Fi config failed: {exc}"
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return True
+
+    @Slot(str, result=bool)
+    def switchMode(self, target_mode: str) -> bool:
+        """Switch between USB Cellular Modem (ppp0) and Standalone Pocket Router."""
+        self.isSwitchingMode = True
+        self.statusMessage = f"Switching operational mode to {target_mode}..."
+
+        def _worker():
+            try:
+                if target_mode == "pocket_router":
+                    res = self._mode_switcher.switch_to_router_mode()
+                else:
+                    res = self._mode_switcher.switch_to_usb_mode()
+                self.operationalMode = res.get("mode", target_mode)
+                self.statusMessage = res.get("message", "Mode switched.")
+            except Exception as exc:
+                logger.error("Mode switch error: %s", exc)
+                self.statusMessage = f"Mode switch failed: {exc}"
+            finally:
+                self.isSwitchingMode = False
+                try:
+                    self._update_status_data(self._client.get_status())
+                except Exception:
+                    pass
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return True
+
+    @Slot(result=list)
+    def getWifiStations(self) -> list:
+        """Scrape active connected stations from QC-Webs station_list.asp."""
+        def _worker():
+            try:
+                stations = self._qcwebs.get_station_list()
+                self.wifiStations = stations
+                self.wifiClientsCount = len(stations)
+            except Exception as exc:
+                logger.debug("Failed to scrape station list: %s", exc)
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return self._wifi_stations
+
+    @Slot(result=bool)
+    def openWebUi(self) -> bool:
+        """Open QC-Webs WebUI at http://192.168.100.1 in desktop browser."""
+        import subprocess
+        try:
+            subprocess.Popen(["xdg-open", f"http://{self._qcwebs.host}"])
+            return True
+        except Exception as exc:
+            logger.debug("xdg-open failed: %s", exc)
+            return False
+
+    @Slot(result=bool)
+    def rebootModem(self) -> bool:
+        """Trigger baseband hardware restart."""
+        def _worker():
+            try:
+                self._qcwebs.device_reboot()
+                self.statusMessage = "Modem reboot signal sent."
+            except Exception as exc:
+                logger.error("Reboot failed: %s", exc)
+                self.statusMessage = f"Reboot failed: {exc}"
 
         threading.Thread(target=_worker, daemon=True).start()
         return True
