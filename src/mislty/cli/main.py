@@ -98,297 +98,233 @@ def main(args=None):
             print(ports)
         sys.exit(0 if ports.is_ready else 1)
 
-    if parsed.subcommand == "at":
-        import json
-        from mislty.core.port_resolver import PortResolver
-        from mislty.core.serial_transport import SerialTransport
-        from mislty.core.at_parser import AtDispatcher
+    import json
+    from mislty.ipc.client import MisltyClient
 
-        port_path = parsed.port
-        if not port_path:
-            resolver = PortResolver()
-            ports = resolver.resolve()
-            if not ports.control or not ports.control.exists():
-                print("Error: Modem control port not found.", file=sys.stderr)
-                sys.exit(1)
-            port_path = ports.control
+    client = MisltyClient()
 
-        transport = SerialTransport(port_path, timeout=parsed.timeout)
-        dispatcher = AtDispatcher(transport)
-        resp = dispatcher.execute(parsed.command, timeout=parsed.timeout)
-
-        if parsed.json:
-            print(json.dumps(resp.as_dict(), indent=2))
-        else:
-            if resp.lines:
-                for line in resp.lines:
-                    print(line)
-            if not resp.success:
-                err = resp.error or "ERROR"
-                detail = f" ({resp.error_detail})" if resp.error_detail else ""
-                print(f"{err}{detail}", file=sys.stderr)
-
-        sys.exit(0 if resp.success else 1)
-
-    if parsed.subcommand == "sms":
-        import json
-        from mislty.storage.database import DatabaseManager
-        from mislty.storage.sms_store import SmsStore
-
-        db = DatabaseManager()
-        sms = SmsStore(db)
-
-        if parsed.sms_action == "list":
-            if parsed.thread is not None:
-                messages = sms.get_thread_messages(parsed.thread)
-                if parsed.json:
-                    print(json.dumps([m.as_dict() for m in messages], indent=2))
-                else:
-                    if not messages:
-                        print(f"No messages in thread #{parsed.thread}.")
-                    else:
-                        for m in messages:
-                            dir_symbol = "➔" if m.direction == "OUT" else "⬅"
-                            print(f"[{m.id}] {dir_symbol} {m.phone_number} ({time.ctime(m.timestamp)}): {m.body}")
+    try:
+        if parsed.subcommand == "at":
+            if parsed.port:
+                from mislty.core.serial_transport import SerialTransport
+                from mislty.core.at_parser import AtDispatcher
+                transport = SerialTransport(parsed.port, timeout=parsed.timeout)
+                dispatcher = AtDispatcher(transport)
+                resp = dispatcher.execute(parsed.command, timeout=parsed.timeout).as_dict()
+                transport.close()
             else:
-                threads = sms.list_threads()
-                if parsed.json:
-                    print(json.dumps([t.as_dict() for t in threads], indent=2))
-                else:
-                    if not threads:
-                        print("No conversation threads found in local storage. (Run 'mislty sms sync' to fetch from SIM)")
-                    else:
-                        print(f"{'ID':<4} {'Recipient':<18} {'Unread':<8} {'Snippet':<40}")
-                        print("-" * 72)
-                        for t in threads:
-                            contact = f" ({t.contact_name})" if t.contact_name else ""
-                            recip = f"{t.recipient_number}{contact}"[:17]
-                            print(f"{t.id:<4} {recip:<18} {t.unread_count:<8} {t.snippet:<40}")
-            sys.exit(0)
-
-        elif parsed.sms_action == "sync":
-            from mislty.core.port_resolver import PortResolver
-            from mislty.core.serial_transport import SerialTransport
-            from mislty.core.at_parser import AtDispatcher
-
-            ports = PortResolver().resolve()
-            if not ports.control or not ports.control.exists():
-                print("Error: Modem control port not found.", file=sys.stderr)
-                sys.exit(1)
-
-            transport = SerialTransport(ports.control, timeout=3.0)
-            dispatcher = AtDispatcher(transport)
-
-            print("Syncing SMS messages from SIM storage (SM) into SQLite...")
-            ingested = sms.reconcile_sim_inbox(dispatcher, purge_sim=not parsed.no_purge)
-            transport.close()
+                resp = client.execute_at(parsed.command, timeout=parsed.timeout)
 
             if parsed.json:
-                print(json.dumps([m.as_dict() for m in ingested], indent=2))
+                print(json.dumps(resp, indent=2))
             else:
-                print(f"Successfully synced {len(ingested)} new message(s) into local database.")
-                for m in ingested:
-                    print(f"  • Ingested from {m.phone_number} (SIM slot {m.sim_index}): {m.body[:60]}...")
+                lines = resp.get("lines", [])
+                for line in lines:
+                    print(line)
+                if not resp.get("success"):
+                    err = resp.get("error") or "ERROR"
+                    detail = f" ({resp.get('error_detail')})" if resp.get("error_detail") else ""
+                    print(f"{err}{detail}", file=sys.stderr)
+            sys.exit(0 if resp.get("success") else 1)
+
+        elif parsed.subcommand == "status":
+            status_data = client.get_status()
+            if parsed.json:
+                print(json.dumps(status_data, indent=2))
+            else:
+                daemon_info = status_data.get("daemon", {})
+                hw_info = status_data.get("hardware", {})
+                ppp_info = status_data.get("cellular_ppp", {})
+                wifi_info = status_data.get("wifi", {})
+
+                print("MisLTy Modem & Network Status")
+                print("=" * 40)
+                backend = client.active_transport
+                print(f"IPC Backend    : {backend}")
+                print(f"Hardware Ports : {'Ready' if hw_info.get('is_present') or hw_info.get('control') else 'Incomplete'}")
+                print(f"  • Control    : {hw_info.get('control') or 'None'}")
+                print(f"  • Data       : {hw_info.get('data') or 'None'}")
+                print(f"  • Aux Wi-Fi  : {hw_info.get('aux_wifi') or 'None'}")
+
+                csq = daemon_info.get("rssi")
+                dbm = daemon_info.get("dbm")
+                csq_str = f"{csq} ({dbm} dBm)" if csq is not None and csq > 0 else "Unknown"
+                print("\nCellular Radio")
+                print(f"  • Operator   : {daemon_info.get('carrier') or 'Unknown'}")
+                print(f"  • Signal CSQ : {csq_str}")
+                print(f"  • Technology : {daemon_info.get('technology') or 'Unknown'}")
+
+                wifi_pwr = "ON" if wifi_info.get("power") else ("OFF" if wifi_info.get("power") is False else "Unknown")
+                print("\nBroadcom Wi-Fi")
+                print(f"  • Radio Power: {wifi_pwr}")
+                print(f"  • SSID       : {wifi_info.get('ssid') or 'Unknown'}")
+                print(f"  • Clients    : {wifi_info.get('clients_count', 0)} connected")
+
+                print("\nCellular PPP")
+                if ppp_info.get("connected"):
+                    print(f"  • Status     : Connected ({ppp_info.get('interface')})")
+                    print(f"  • Local IP   : {ppp_info.get('ip_address')}")
+                    print(f"  • Peer IP    : {ppp_info.get('peer_ip')}")
+                    dns_str = ", ".join(ppp_info.get("dns_servers", [])) or "None"
+                    print(f"  • DNS        : {dns_str}")
+                    print(f"  • Uptime     : {ppp_info.get('uptime_seconds', 0)}s")
+                else:
+                    print("  • Status     : Disconnected")
             sys.exit(0)
 
-        elif not parsed.sms_action:
-            p_sms.print_help()
+        elif parsed.subcommand == "connect":
+            print(f"Connecting cellular data link (APN: {parsed.apn}, default route: {parsed.default})...")
+            res = client.connect(apn=parsed.apn, default_route=parsed.default, timeout=parsed.timeout)
+            if res.get("success"):
+                stat = res.get("status", {})
+                ip = stat.get("ip_address") or "Allocated"
+                print(f"Connected! Interface: {stat.get('interface', 'ppp0')}, IP: {ip}")
+                sys.exit(0)
+            else:
+                print("Failed to establish cellular data connection.", file=sys.stderr)
+                sys.exit(1)
+
+        elif parsed.subcommand == "disconnect":
+            print("Terminating cellular PPP session and restoring network routes...")
+            client.disconnect()
+            print("Disconnected.")
             sys.exit(0)
 
-    if parsed.subcommand == "status":
-        import json
-        from mislty.core.port_resolver import PortResolver
-        from mislty.core.serial_transport import SerialTransport
-        from mislty.core.at_parser import AtDispatcher
-        from mislty.net.ppp_controller import PppController
-        from mislty.net.wifi_manager import WifiManager
-
-        resolver = PortResolver()
-        ports = resolver.resolve()
-        ppp_mgr = PppController()
-        ppp_stat = ppp_mgr.get_status()
-
-        status_data = {
-            "hardware": {
-                "ready": ports.is_ready,
-                "control": str(ports.control) if ports.control else None,
-                "data": str(ports.data) if ports.data else None,
-                "voice": str(ports.voice) if ports.voice else None,
-                "diag": str(ports.diag) if ports.diag else None,
-                "aux_wifi": ports.aux_wifi,
-            },
-            "cellular_ppp": ppp_stat.as_dict(),
-            "radio": {
-                "signal_csq": None,
-                "rssi_dbm": None,
-                "operator": None,
-            },
-            "wifi": {
-                "power": None,
-                "ssid": None,
-                "clients_count": 0,
-            },
-        }
-
-        if ports.control and ports.control.exists():
-            try:
-                transport = SerialTransport(ports.control, timeout=2.0)
-                dispatcher = AtDispatcher(transport)
-
-                csq = dispatcher.execute("AT+CSQ", timeout=2.0)
-                if csq.success and csq.lines:
-                    for line in csq.lines:
-                        if "+CSQ:" in line:
-                            val = line.split(":")[-1].strip().split(",")[0]
-                            try:
-                                raw_csq = int(val)
-                                status_data["radio"]["signal_csq"] = raw_csq
-                                if raw_csq != 99:
-                                    status_data["radio"]["rssi_dbm"] = -113 + (raw_csq * 2)
-                            except ValueError:
-                                pass
-
-                cops = dispatcher.execute("AT+COPS?", timeout=2.0)
-                if cops.success and cops.lines:
-                    for line in cops.lines:
-                        if "+COPS:" in line and '"' in line:
-                            status_data["radio"]["operator"] = line.split('"')[1]
-
-                wifi = WifiManager(dispatcher)
-                status_data["wifi"]["power"] = wifi.get_radio_power()
-                status_data["wifi"]["ssid"] = wifi.get_ssid_serial()
-
-                transport.close()
-            except Exception:
-                pass
-
-        if ports.aux_wifi_netns:
-            try:
-                wifi = WifiManager()
-                clients = wifi.get_connected_clients(netns=ports.aux_wifi_netns)
-                status_data["wifi"]["clients_count"] = len(clients)
-            except Exception:
-                pass
-
-        if parsed.json:
-            print(json.dumps(status_data, indent=2))
-        else:
-            print("MisLTy Modem & Network Status")
-            print("=" * 40)
-            print(f"Hardware Ports : {'Ready' if status_data['hardware']['ready'] else 'Incomplete'}")
-            print(f"  • Control    : {status_data['hardware']['control'] or 'None'}")
-            print(f"  • Data       : {status_data['hardware']['data'] or 'None'}")
-            print(f"  • Aux Wi-Fi  : {status_data['hardware']['aux_wifi'] or 'None'}")
-
-            csq_str = f"{status_data['radio']['signal_csq']} ({status_data['radio']['rssi_dbm']} dBm)" if status_data['radio']['signal_csq'] is not None else "Unknown"
-            print("\nCellular Radio")
-            print(f"  • Operator   : {status_data['radio']['operator'] or 'Unknown'}")
-            print(f"  • Signal CSQ : {csq_str}")
-
-            wifi_pwr = "ON" if status_data["wifi"]["power"] else ("OFF" if status_data["wifi"]["power"] is False else "Unknown")
-            print("\nBroadcom Wi-Fi")
-            print(f"  • Radio Power: {wifi_pwr}")
-            print(f"  • SSID       : {status_data['wifi']['ssid'] or 'Unknown'}")
-            print(f"  • Clients    : {status_data['wifi']['clients_count']} connected")
-
-            print(f"\n{ppp_stat}")
-        sys.exit(0)
-
-    if parsed.subcommand == "connect":
-        from mislty.net.ppp_controller import PppController
-        controller = PppController()
-        print(f"Connecting cellular data link (APN: {parsed.apn}, default route: {parsed.default})...")
-        ok = controller.connect(apn=parsed.apn, default_route=parsed.default, timeout=parsed.timeout)
-        if ok:
-            stat = controller.get_status()
-            print(f"Connected! Interface: {stat.interface}, IP: {stat.ip_address}")
-            if stat.dns_servers:
-                print(f"DNS Servers: {', '.join(stat.dns_servers)}")
-            sys.exit(0)
-        else:
-            print("Failed to establish cellular data connection.", file=sys.stderr)
-            sys.exit(1)
-
-    if parsed.subcommand == "disconnect":
-        from mislty.net.ppp_controller import PppController
-        controller = PppController()
-        print("Terminating cellular PPP session and restoring network routes...")
-        controller.disconnect()
-        print("Disconnected.")
-        sys.exit(0)
-
-    if parsed.subcommand == "wifi":
-        from mislty.core.port_resolver import PortResolver
-        from mislty.core.serial_transport import SerialTransport
-        from mislty.core.at_parser import AtDispatcher
-        from mislty.net.wifi_manager import WifiManager
-
-        ports = PortResolver().resolve()
-        transport = None
-        dispatcher = None
-        if ports.control and ports.control.exists():
-            try:
-                transport = SerialTransport(ports.control, timeout=3.0)
-                dispatcher = AtDispatcher(transport)
-            except Exception as exc:
-                print(f"Warning: Could not open control port: {exc}", file=sys.stderr)
-
-        wifi = WifiManager(dispatcher)
-        try:
+        elif parsed.subcommand == "wifi":
             if parsed.action == "on":
                 print("Enabling Wi-Fi radio...")
-                ok = wifi.set_radio_power(True)
+                res = client.set_wifi_power(True)
+                ok = res.get("success", False)
                 print("Wi-Fi radio enabled." if ok else "Failed to enable Wi-Fi radio.", file=sys.stdout if ok else sys.stderr)
                 sys.exit(0 if ok else 1)
             elif parsed.action == "off":
                 print("Disabling Wi-Fi radio...")
-                ok = wifi.set_radio_power(False)
+                res = client.set_wifi_power(False)
+                ok = res.get("success", False)
                 print("Wi-Fi radio disabled." if ok else "Failed to disable Wi-Fi radio.", file=sys.stdout if ok else sys.stderr)
                 sys.exit(0 if ok else 1)
             elif parsed.action == "status":
-                pwr = wifi.get_radio_power()
-                ssid = wifi.get_ssid_serial()
+                status = client.get_status()
+                wifi_info = status.get("wifi", {})
+                pwr = wifi_info.get("power")
                 state_str = "ON" if pwr else ("OFF" if pwr is False else "Unknown")
                 print(f"Wi-Fi Radio: {state_str}")
-                print(f"SSID: {ssid or 'Unknown'}")
+                print(f"SSID: {wifi_info.get('ssid') or 'Unknown'}")
                 sys.exit(0)
             elif parsed.action == "ssid":
                 if not parsed.param:
-                    ssid = wifi.get_ssid_serial()
-                    print(f"Current SSID: {ssid or 'Unknown'}")
+                    status = client.get_status()
+                    print(f"Current SSID: {status.get('wifi', {}).get('ssid') or 'Unknown'}")
                 else:
                     print(f"Configuring SSID: '{parsed.param}'...")
-                    netns = ports.aux_wifi_netns
-                    ok = wifi.set_clean_ssid_web(parsed.param, netns=netns)
-                    if not ok:
-                        ok = wifi.set_credentials_serial(parsed.param)
+                    res = client.set_wifi_credentials(parsed.param)
+                    ok = res.get("success", False)
                     print(f"SSID configured to '{parsed.param}'." if ok else "Failed to configure SSID.", file=sys.stdout if ok else sys.stderr)
                     sys.exit(0 if ok else 1)
             elif parsed.action == "password":
                 if not parsed.param:
                     print("Error: Password parameter required.", file=sys.stderr)
                     sys.exit(1)
-                ssid = wifi.get_ssid_serial() or "TypeScript 420"
+                status = client.get_status()
+                ssid = status.get("wifi", {}).get("ssid") or "TypeScript 420"
                 print("Configuring Wi-Fi WPA2 password...")
-                ok = wifi.set_credentials_serial(ssid, password=parsed.param)
+                res = client.set_wifi_credentials(ssid, password=parsed.param)
+                ok = res.get("success", False)
                 print("Wi-Fi password configured." if ok else "Failed to configure password.", file=sys.stdout if ok else sys.stderr)
                 sys.exit(0 if ok else 1)
             elif parsed.action == "clients":
-                netns = ports.aux_wifi_netns
-                clients = wifi.get_connected_clients(netns=netns)
+                clients = client.get_wifi_clients()
                 if not clients:
                     print("No connected Wi-Fi clients detected.")
                 else:
                     print(f"{'Hostname':<20} {'IP Address':<18} {'MAC Address':<18}")
                     print("-" * 58)
                     for c in clients:
-                        print(f"{c['hostname']:<20} {c['ip']:<18} {c['mac']:<18}")
+                        print(f"{c.get('hostname', 'Unknown'):<20} {c.get('ip', ''):<18} {c.get('mac', ''):<18}")
                 sys.exit(0)
-        finally:
-            if transport:
-                transport.close()
 
+        elif parsed.subcommand == "sms":
+            if parsed.sms_action == "list":
+                items = client.list_sms(thread_id=parsed.thread)
+                if parsed.json:
+                    print(json.dumps(items, indent=2))
+                else:
+                    if parsed.thread is not None:
+                        if not items:
+                            print(f"No messages in thread #{parsed.thread}.")
+                        else:
+                            for m in items:
+                                dir_symbol = "➔" if m.get("direction") == "OUT" else "⬅"
+                                print(f"[{m.get('id')}] {dir_symbol} {m.get('phone_number')} ({time.ctime(m.get('timestamp', 0))}): {m.get('body')}")
+                    else:
+                        if not items:
+                            print("No conversation threads found. (Run 'mislty sms sync' to fetch from SIM)")
+                        else:
+                            print(f"{'ID':<4} {'Recipient':<18} {'Unread':<8} {'Snippet':<40}")
+                            print("-" * 72)
+                            for t in items:
+                                contact = f" ({t.get('contact_name')})" if t.get("contact_name") else ""
+                                recip = f"{t.get('recipient_number')}{contact}"[:17]
+                                print(f"{t.get('id'):<4} {recip:<18} {t.get('unread_count', 0):<8} {t.get('snippet', ''):<40}")
+                sys.exit(0)
 
+            elif parsed.sms_action == "send":
+                print(f"Sending SMS to {parsed.recipient}...")
+                res = client.send_sms(parsed.recipient, parsed.text)
+                if res.get("success"):
+                    print(f"SMS sent successfully (Message ID: {res.get('message_id')}).")
+                    sys.exit(0)
+                else:
+                    print(f"Failed to send SMS: {res.get('error') or 'Error'}", file=sys.stderr)
+                    sys.exit(1)
+
+            elif parsed.sms_action == "sync":
+                print("Syncing SMS messages from SIM storage (SM) into SQLite...")
+                ingested = client.sync_sms(purge_sim=not parsed.no_purge)
+                if parsed.json:
+                    print(json.dumps(ingested, indent=2))
+                else:
+                    print(f"Successfully synced {len(ingested)} new message(s).")
+                    for m in ingested:
+                        print(f"  • Ingested from {m.get('phone_number')} (SIM slot {m.get('sim_index')}): {m.get('body', '')[:60]}...")
+                sys.exit(0)
+
+            elif not parsed.sms_action:
+                p_sms.print_help()
+                sys.exit(0)
+
+        elif parsed.subcommand == "sim":
+            resp_cimi = client.execute_at("AT+CIMI")
+            resp_cpin = client.execute_at("AT+CPIN?")
+            resp_cops = client.execute_at("AT+COPS?")
+
+            imsi = "Unknown"
+            if resp_cimi.get("lines"):
+                for l in resp_cimi["lines"]:
+                    if l.strip().isdigit():
+                        imsi = l.strip()
+
+            cpin = "Unknown"
+            if resp_cpin.get("lines"):
+                for l in resp_cpin["lines"]:
+                    if "+CPIN:" in l:
+                        cpin = l.split(":")[-1].strip()
+
+            operator = "Unknown"
+            if resp_cops.get("lines"):
+                for l in resp_cops["lines"]:
+                    if "+COPS:" in l and '"' in l:
+                        operator = l.split('"')[1]
+
+            print("SIM Card & Subscription Status")
+            print("=" * 40)
+            print(f"  • PIN Status : {cpin}")
+            print(f"  • IMSI       : {imsi}")
+            print(f"  • Operator   : {operator}")
+            sys.exit(0)
+
+    finally:
+        client.close()
 
 
 if __name__ == "__main__":
