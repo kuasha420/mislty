@@ -20,6 +20,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="version",
         version=f"%(prog)s {mislty.__version__} (Qualcomm MDM9600 / Aleka UV310)"
     )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable ANSI colors and visual formatting in terminal output",
+    )
     
     subparsers = parser.add_subparsers(dest="subcommand", help="Operational Subcommands")
     
@@ -128,6 +133,9 @@ def main(args=None):
             sys.exit(0 if resp.get("success") else 1)
 
         elif parsed.subcommand == "status":
+            from mislty.cli.formatter import TerminalFormatter
+            fmt = TerminalFormatter(force_color=False if parsed.no_color else None)
+
             status_data = client.get_status()
             if parsed.json:
                 print(json.dumps(status_data, indent=2))
@@ -137,39 +145,43 @@ def main(args=None):
                 ppp_info = status_data.get("cellular_ppp", {})
                 wifi_info = status_data.get("wifi", {})
 
-                print("MisLTy Modem & Network Status")
-                print("=" * 40)
-                backend = client.active_transport
-                print(f"IPC Backend    : {backend}")
-                print(f"Hardware Ports : {'Ready' if hw_info.get('is_present') or hw_info.get('control') else 'Incomplete'}")
+                print(fmt.bold("MisLTy Cellular & Wi-Fi Station"))
+                print(fmt.dim("=" * 45))
+                backend_str = fmt.cyan(client.active_transport, bold=True)
+                print(f"IPC Transport  : {backend_str}")
+
+                hw_ready = bool(hw_info.get("is_present") or hw_info.get("control"))
+                hw_badge = fmt.green("[Ready]", bold=True) if hw_ready else fmt.yellow("[Incomplete]", bold=True)
+                print(f"Hardware State : {hw_badge}")
                 print(f"  • Control    : {hw_info.get('control') or 'None'}")
                 print(f"  • Data       : {hw_info.get('data') or 'None'}")
                 print(f"  • Aux Wi-Fi  : {hw_info.get('aux_wifi') or 'None'}")
 
                 csq = daemon_info.get("rssi")
                 dbm = daemon_info.get("dbm")
-                csq_str = f"{csq} ({dbm} dBm)" if csq is not None and csq > 0 else "Unknown"
-                print("\nCellular Radio")
-                print(f"  • Operator   : {daemon_info.get('carrier') or 'Unknown'}")
-                print(f"  • Signal CSQ : {csq_str}")
-                print(f"  • Technology : {daemon_info.get('technology') or 'Unknown'}")
+                radio_online = bool(daemon_info.get("carrier") or (csq and csq > 0))
+                print(f"\n{fmt.bold('Cellular Baseband')} : {fmt.format_badge(radio_online)}")
+                print(f"  • Operator   : {fmt.bold(daemon_info.get('carrier') or 'Unknown')}")
+                print(f"  • RAT / Mode : {daemon_info.get('technology') or 'Unknown'}")
+                print(f"  • RF Signal  : {fmt.format_signal_meter(csq, dbm)}")
 
-                wifi_pwr = "ON" if wifi_info.get("power") else ("OFF" if wifi_info.get("power") is False else "Unknown")
-                print("\nBroadcom Wi-Fi")
-                print(f"  • Radio Power: {wifi_pwr}")
-                print(f"  • SSID       : {wifi_info.get('ssid') or 'Unknown'}")
+                wifi_pwr = bool(wifi_info.get("power"))
+                print(f"\n{fmt.bold('Broadcom Wi-Fi')}   : {fmt.format_badge(wifi_pwr)}")
+                print(f"  • Broadcast  : {fmt.bold(wifi_info.get('ssid') or 'Unknown')}")
                 print(f"  • Clients    : {wifi_info.get('clients_count', 0)} connected")
 
-                print("\nCellular PPP")
-                if ppp_info.get("connected"):
-                    print(f"  • Status     : Connected ({ppp_info.get('interface')})")
-                    print(f"  • Local IP   : {ppp_info.get('ip_address')}")
-                    print(f"  • Peer IP    : {ppp_info.get('peer_ip')}")
+                ppp_connected = bool(ppp_info.get("connected"))
+                print(f"\n{fmt.bold('PPP Data Plane')}   : {fmt.format_badge(ppp_connected, on_text='CONNECTED', off_text='DISCONNECTED')}")
+                if ppp_connected:
+                    print(f"  • Interface  : {fmt.bold(ppp_info.get('interface', 'ppp0'))}")
+                    print(f"  • Local IP   : {fmt.green(ppp_info.get('ip_address') or 'Unknown')}")
+                    print(f"  • Peer IP    : {ppp_info.get('peer_ip') or 'Unknown'}")
                     dns_str = ", ".join(ppp_info.get("dns_servers", [])) or "None"
                     print(f"  • DNS        : {dns_str}")
-                    print(f"  • Uptime     : {ppp_info.get('uptime_seconds', 0)}s")
-                else:
-                    print("  • Status     : Disconnected")
+                    rx_str = fmt.format_bytes(ppp_info.get("rx_bytes", 0))
+                    tx_str = fmt.format_bytes(ppp_info.get("tx_bytes", 0))
+                    print(f"  • Bandwidth  : RX {rx_str} | TX {tx_str}")
+                    print(f"  • Uptime     : {ppp_info.get('uptime_seconds', 0):.0f}s")
             sys.exit(0)
 
         elif parsed.subcommand == "connect":
@@ -191,17 +203,20 @@ def main(args=None):
             sys.exit(0)
 
         elif parsed.subcommand == "wifi":
+            from mislty.cli.formatter import TerminalFormatter
+            fmt = TerminalFormatter(force_color=False if parsed.no_color else None)
+
             if parsed.action == "on":
                 print("Enabling Wi-Fi radio...")
                 res = client.set_wifi_power(True)
                 ok = res.get("success", False)
-                print("Wi-Fi radio enabled." if ok else "Failed to enable Wi-Fi radio.", file=sys.stdout if ok else sys.stderr)
+                print(fmt.green("Wi-Fi radio enabled.") if ok else fmt.red("Failed to enable Wi-Fi radio."), file=sys.stdout if ok else sys.stderr)
                 sys.exit(0 if ok else 1)
             elif parsed.action == "off":
                 print("Disabling Wi-Fi radio...")
                 res = client.set_wifi_power(False)
                 ok = res.get("success", False)
-                print("Wi-Fi radio disabled." if ok else "Failed to disable Wi-Fi radio.", file=sys.stdout if ok else sys.stderr)
+                print(fmt.green("Wi-Fi radio disabled.") if ok else fmt.red("Failed to disable Wi-Fi radio."), file=sys.stdout if ok else sys.stderr)
                 sys.exit(0 if ok else 1)
             elif parsed.action == "status":
                 status = client.get_status()
@@ -219,7 +234,7 @@ def main(args=None):
                     print(f"Configuring SSID: '{parsed.param}'...")
                     res = client.set_wifi_credentials(parsed.param)
                     ok = res.get("success", False)
-                    print(f"SSID configured to '{parsed.param}'." if ok else "Failed to configure SSID.", file=sys.stdout if ok else sys.stderr)
+                    print(fmt.green(f"SSID configured to '{parsed.param}'.") if ok else fmt.red("Failed to configure SSID."), file=sys.stdout if ok else sys.stderr)
                     sys.exit(0 if ok else 1)
             elif parsed.action == "password":
                 if not parsed.param:
@@ -230,20 +245,21 @@ def main(args=None):
                 print("Configuring Wi-Fi WPA2 password...")
                 res = client.set_wifi_credentials(ssid, password=parsed.param)
                 ok = res.get("success", False)
-                print("Wi-Fi password configured." if ok else "Failed to configure password.", file=sys.stdout if ok else sys.stderr)
+                print(fmt.green("Wi-Fi password configured.") if ok else fmt.red("Failed to configure password."), file=sys.stdout if ok else sys.stderr)
                 sys.exit(0 if ok else 1)
             elif parsed.action == "clients":
                 clients = client.get_wifi_clients()
                 if not clients:
                     print("No connected Wi-Fi clients detected.")
                 else:
-                    print(f"{'Hostname':<20} {'IP Address':<18} {'MAC Address':<18}")
-                    print("-" * 58)
-                    for c in clients:
-                        print(f"{c.get('hostname', 'Unknown'):<20} {c.get('ip', ''):<18} {c.get('mac', ''):<18}")
+                    rows = [[c.get("hostname", "Unknown"), c.get("ip", ""), c.get("mac", "")] for c in clients]
+                    print(fmt.format_table(["Hostname", "IP Address", "MAC Address"], rows))
                 sys.exit(0)
 
         elif parsed.subcommand == "sms":
+            from mislty.cli.formatter import TerminalFormatter
+            fmt = TerminalFormatter(force_color=False if parsed.no_color else None)
+
             if parsed.sms_action == "list":
                 items = client.list_sms(thread_id=parsed.thread)
                 if parsed.json:
@@ -253,29 +269,33 @@ def main(args=None):
                         if not items:
                             print(f"No messages in thread #{parsed.thread}.")
                         else:
+                            rows = []
                             for m in items:
                                 dir_symbol = "➔" if m.get("direction") == "OUT" else "⬅"
-                                print(f"[{m.get('id')}] {dir_symbol} {m.get('phone_number')} ({time.ctime(m.get('timestamp', 0))}): {m.get('body')}")
+                                t_str = time.strftime("%Y-%m-%d %H:%M", time.localtime(m.get("timestamp", 0)))
+                                rows.append([str(m.get("id")), dir_symbol, m.get("phone_number", ""), t_str, m.get("body", "")])
+                            print(fmt.format_table(["ID", "Dir", "Phone Number", "Timestamp", "Message Body"], rows))
                     else:
                         if not items:
                             print("No conversation threads found. (Run 'mislty sms sync' to fetch from SIM)")
                         else:
-                            print(f"{'ID':<4} {'Recipient':<18} {'Unread':<8} {'Snippet':<40}")
-                            print("-" * 72)
+                            rows = []
                             for t in items:
                                 contact = f" ({t.get('contact_name')})" if t.get("contact_name") else ""
-                                recip = f"{t.get('recipient_number')}{contact}"[:17]
-                                print(f"{t.get('id'):<4} {recip:<18} {t.get('unread_count', 0):<8} {t.get('snippet', ''):<40}")
+                                recip = f"{t.get('recipient_number')}{contact}"
+                                updated = time.strftime("%b %d %H:%M", time.localtime(t.get("updated_at", 0)))
+                                rows.append([str(t.get("id")), recip, str(t.get("unread_count", 0)), updated, t.get("snippet", "")])
+                            print(fmt.format_table(["ID", "Recipient", "Unread", "Updated", "Latest Snippet"], rows))
                 sys.exit(0)
 
             elif parsed.sms_action == "send":
                 print(f"Sending SMS to {parsed.recipient}...")
                 res = client.send_sms(parsed.recipient, parsed.text)
                 if res.get("success"):
-                    print(f"SMS sent successfully (Message ID: {res.get('message_id')}).")
+                    print(fmt.green(f"SMS sent successfully (Message ID: {res.get('message_id')})."))
                     sys.exit(0)
                 else:
-                    print(f"Failed to send SMS: {res.get('error') or 'Error'}", file=sys.stderr)
+                    print(fmt.red(f"Failed to send SMS: {res.get('error') or 'Error'}"), file=sys.stderr)
                     sys.exit(1)
 
             elif parsed.sms_action == "sync":
@@ -284,7 +304,7 @@ def main(args=None):
                 if parsed.json:
                     print(json.dumps(ingested, indent=2))
                 else:
-                    print(f"Successfully synced {len(ingested)} new message(s).")
+                    print(fmt.green(f"Successfully synced {len(ingested)} new message(s)."))
                     for m in ingested:
                         print(f"  • Ingested from {m.get('phone_number')} (SIM slot {m.get('sim_index')}): {m.get('body', '')[:60]}...")
                 sys.exit(0)
@@ -294,6 +314,9 @@ def main(args=None):
                 sys.exit(0)
 
         elif parsed.subcommand == "sim":
+            from mislty.cli.formatter import TerminalFormatter
+            fmt = TerminalFormatter(force_color=False if parsed.no_color else None)
+
             resp_cimi = client.execute_at("AT+CIMI")
             resp_cpin = client.execute_at("AT+CPIN?")
             resp_cops = client.execute_at("AT+COPS?")
@@ -316,11 +339,12 @@ def main(args=None):
                     if "+COPS:" in l and '"' in l:
                         operator = l.split('"')[1]
 
-            print("SIM Card & Subscription Status")
-            print("=" * 40)
-            print(f"  • PIN Status : {cpin}")
-            print(f"  • IMSI       : {imsi}")
-            print(f"  • Operator   : {operator}")
+            print(fmt.bold("SIM Card & Subscription Status"))
+            print(fmt.dim("=" * 45))
+            pin_badge = fmt.green(cpin) if cpin == "READY" else fmt.yellow(cpin)
+            print(f"  • PIN Status : {pin_badge}")
+            print(f"  • IMSI       : {fmt.bold(imsi)}")
+            print(f"  • Operator   : {fmt.cyan(operator, bold=True)}")
             sys.exit(0)
 
     finally:
