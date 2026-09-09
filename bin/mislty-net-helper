@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# MisLTy Privileged Network Helper Wrapper
+set -euo pipefail
+
+# Ensure mislty package from project or local site-packages is in PYTHONPATH
+if [ -d "/home/psl/Projects/ufi-modem/src" ]; then
+    export PYTHONPATH="/home/psl/Projects/ufi-modem/src:${PYTHONPATH:-}"
+fi
+
+exec /usr/bin/python3 -m mislty.net.helper "$@"

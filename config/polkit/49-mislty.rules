@@ -1,0 +1,12 @@
+/*
+ * 49-mislty.rules: Polkit rules for MisLTy Privileged Network Helper
+ * Allows members of the wheel or sudo group to run network adjustments
+ * without repeated password prompts.
+ */
+
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.mislty.network.control" &&
+        (subject.isInGroup("wheel") || subject.isInGroup("sudo"))) {
+        return polkit.Result.YES;
+    }
+});
