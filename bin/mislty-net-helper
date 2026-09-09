@@ -7,4 +7,4 @@ if [ -d "/home/psl/Projects/ufi-modem/src" ]; then
     export PYTHONPATH="/home/psl/Projects/ufi-modem/src:${PYTHONPATH:-}"
 fi
 
-exec /usr/bin/python3 -m mislty.net.helper "$@"
+exec /usr/bin/python3 -c "from mislty.net.helper import main; import sys; sys.exit(main())" "$@"

@@ -29,6 +29,8 @@ def build_parser() -> argparse.ArgumentParser:
     
     # connect
     p_connect = subparsers.add_parser("connect", help="Establish USB cellular data connection (ppp0)")
+    p_connect.add_argument("--apn", default="internet", help="Carrier APN (default: internet)")
+    p_connect.add_argument("--timeout", type=float, default=20.0, help="Connection timeout in seconds")
     p_connect.add_argument("--default", action="store_true", help="Configure ppp0 as the primary default gateway")
     
     # disconnect
@@ -36,7 +38,7 @@ def build_parser() -> argparse.ArgumentParser:
     
     # wifi
     p_wifi = subparsers.add_parser("wifi", help="Control Broadcom Wi-Fi co-processor")
-    p_wifi.add_argument("action", choices=["on", "off", "status", "ssid", "password"], help="Wi-Fi action")
+    p_wifi.add_argument("action", choices=["on", "off", "status", "ssid", "password", "clients"], help="Wi-Fi action")
     p_wifi.add_argument("param", nargs="?", default=None, help="SSID name or password value")
     
     # mode
@@ -193,7 +195,198 @@ def main(args=None):
             p_sms.print_help()
             sys.exit(0)
 
-    print(f"mislty: subcommand '{parsed.subcommand}' called (pipeline active).")
+    if parsed.subcommand == "status":
+        import json
+        from mislty.core.port_resolver import PortResolver
+        from mislty.core.serial_transport import SerialTransport
+        from mislty.core.at_parser import AtDispatcher
+        from mislty.net.ppp_controller import PppController
+        from mislty.net.wifi_manager import WifiManager
+
+        resolver = PortResolver()
+        ports = resolver.resolve()
+        ppp_mgr = PppController()
+        ppp_stat = ppp_mgr.get_status()
+
+        status_data = {
+            "hardware": {
+                "ready": ports.is_ready,
+                "control": str(ports.control) if ports.control else None,
+                "data": str(ports.data) if ports.data else None,
+                "voice": str(ports.voice) if ports.voice else None,
+                "diag": str(ports.diag) if ports.diag else None,
+                "aux_wifi": ports.aux_wifi,
+            },
+            "cellular_ppp": ppp_stat.as_dict(),
+            "radio": {
+                "signal_csq": None,
+                "rssi_dbm": None,
+                "operator": None,
+            },
+            "wifi": {
+                "power": None,
+                "ssid": None,
+                "clients_count": 0,
+            },
+        }
+
+        if ports.control and ports.control.exists():
+            try:
+                transport = SerialTransport(ports.control, timeout=2.0)
+                dispatcher = AtDispatcher(transport)
+
+                csq = dispatcher.execute("AT+CSQ", timeout=2.0)
+                if csq.success and csq.lines:
+                    for line in csq.lines:
+                        if "+CSQ:" in line:
+                            val = line.split(":")[-1].strip().split(",")[0]
+                            try:
+                                raw_csq = int(val)
+                                status_data["radio"]["signal_csq"] = raw_csq
+                                if raw_csq != 99:
+                                    status_data["radio"]["rssi_dbm"] = -113 + (raw_csq * 2)
+                            except ValueError:
+                                pass
+
+                cops = dispatcher.execute("AT+COPS?", timeout=2.0)
+                if cops.success and cops.lines:
+                    for line in cops.lines:
+                        if "+COPS:" in line and '"' in line:
+                            status_data["radio"]["operator"] = line.split('"')[1]
+
+                wifi = WifiManager(dispatcher)
+                status_data["wifi"]["power"] = wifi.get_radio_power()
+                status_data["wifi"]["ssid"] = wifi.get_ssid_serial()
+
+                transport.close()
+            except Exception:
+                pass
+
+        if ports.aux_wifi_netns:
+            try:
+                wifi = WifiManager()
+                clients = wifi.get_connected_clients(netns=ports.aux_wifi_netns)
+                status_data["wifi"]["clients_count"] = len(clients)
+            except Exception:
+                pass
+
+        if parsed.json:
+            print(json.dumps(status_data, indent=2))
+        else:
+            print("MisLTy Modem & Network Status")
+            print("=" * 40)
+            print(f"Hardware Ports : {'Ready' if status_data['hardware']['ready'] else 'Incomplete'}")
+            print(f"  • Control    : {status_data['hardware']['control'] or 'None'}")
+            print(f"  • Data       : {status_data['hardware']['data'] or 'None'}")
+            print(f"  • Aux Wi-Fi  : {status_data['hardware']['aux_wifi'] or 'None'}")
+
+            csq_str = f"{status_data['radio']['signal_csq']} ({status_data['radio']['rssi_dbm']} dBm)" if status_data['radio']['signal_csq'] is not None else "Unknown"
+            print("\nCellular Radio")
+            print(f"  • Operator   : {status_data['radio']['operator'] or 'Unknown'}")
+            print(f"  • Signal CSQ : {csq_str}")
+
+            wifi_pwr = "ON" if status_data["wifi"]["power"] else ("OFF" if status_data["wifi"]["power"] is False else "Unknown")
+            print("\nBroadcom Wi-Fi")
+            print(f"  • Radio Power: {wifi_pwr}")
+            print(f"  • SSID       : {status_data['wifi']['ssid'] or 'Unknown'}")
+            print(f"  • Clients    : {status_data['wifi']['clients_count']} connected")
+
+            print(f"\n{ppp_stat}")
+        sys.exit(0)
+
+    if parsed.subcommand == "connect":
+        from mislty.net.ppp_controller import PppController
+        controller = PppController()
+        print(f"Connecting cellular data link (APN: {parsed.apn}, default route: {parsed.default})...")
+        ok = controller.connect(apn=parsed.apn, default_route=parsed.default, timeout=parsed.timeout)
+        if ok:
+            stat = controller.get_status()
+            print(f"Connected! Interface: {stat.interface}, IP: {stat.ip_address}")
+            if stat.dns_servers:
+                print(f"DNS Servers: {', '.join(stat.dns_servers)}")
+            sys.exit(0)
+        else:
+            print("Failed to establish cellular data connection.", file=sys.stderr)
+            sys.exit(1)
+
+    if parsed.subcommand == "disconnect":
+        from mislty.net.ppp_controller import PppController
+        controller = PppController()
+        print("Terminating cellular PPP session and restoring network routes...")
+        controller.disconnect()
+        print("Disconnected.")
+        sys.exit(0)
+
+    if parsed.subcommand == "wifi":
+        from mislty.core.port_resolver import PortResolver
+        from mislty.core.serial_transport import SerialTransport
+        from mislty.core.at_parser import AtDispatcher
+        from mislty.net.wifi_manager import WifiManager
+
+        ports = PortResolver().resolve()
+        transport = None
+        dispatcher = None
+        if ports.control and ports.control.exists():
+            try:
+                transport = SerialTransport(ports.control, timeout=3.0)
+                dispatcher = AtDispatcher(transport)
+            except Exception as exc:
+                print(f"Warning: Could not open control port: {exc}", file=sys.stderr)
+
+        wifi = WifiManager(dispatcher)
+        try:
+            if parsed.action == "on":
+                print("Enabling Wi-Fi radio...")
+                ok = wifi.set_radio_power(True)
+                print("Wi-Fi radio enabled." if ok else "Failed to enable Wi-Fi radio.", file=sys.stdout if ok else sys.stderr)
+                sys.exit(0 if ok else 1)
+            elif parsed.action == "off":
+                print("Disabling Wi-Fi radio...")
+                ok = wifi.set_radio_power(False)
+                print("Wi-Fi radio disabled." if ok else "Failed to disable Wi-Fi radio.", file=sys.stdout if ok else sys.stderr)
+                sys.exit(0 if ok else 1)
+            elif parsed.action == "status":
+                pwr = wifi.get_radio_power()
+                ssid = wifi.get_ssid_serial()
+                state_str = "ON" if pwr else ("OFF" if pwr is False else "Unknown")
+                print(f"Wi-Fi Radio: {state_str}")
+                print(f"SSID: {ssid or 'Unknown'}")
+                sys.exit(0)
+            elif parsed.action == "ssid":
+                if not parsed.param:
+                    ssid = wifi.get_ssid_serial()
+                    print(f"Current SSID: {ssid or 'Unknown'}")
+                else:
+                    print(f"Configuring SSID: '{parsed.param}'...")
+                    netns = ports.aux_wifi_netns
+                    ok = wifi.set_clean_ssid_web(parsed.param, netns=netns)
+                    if not ok:
+                        ok = wifi.set_credentials_serial(parsed.param)
+                    print(f"SSID configured to '{parsed.param}'." if ok else "Failed to configure SSID.", file=sys.stdout if ok else sys.stderr)
+                    sys.exit(0 if ok else 1)
+            elif parsed.action == "password":
+                if not parsed.param:
+                    print("Error: Password parameter required.", file=sys.stderr)
+                    sys.exit(1)
+                ssid = wifi.get_ssid_serial() or "TypeScript 420"
+                print("Configuring Wi-Fi WPA2 password...")
+                ok = wifi.set_credentials_serial(ssid, password=parsed.param)
+                print("Wi-Fi password configured." if ok else "Failed to configure password.", file=sys.stdout if ok else sys.stderr)
+                sys.exit(0 if ok else 1)
+            elif parsed.action == "clients":
+                netns = ports.aux_wifi_netns
+                clients = wifi.get_connected_clients(netns=netns)
+                if not clients:
+                    print("No connected Wi-Fi clients detected.")
+                else:
+                    print(f"{'Hostname':<20} {'IP Address':<18} {'MAC Address':<18}")
+                    print("-" * 58)
+                    for c in clients:
+                        print(f"{c['hostname']:<20} {c['ip']:<18} {c['mac']:<18}")
+                sys.exit(0)
+        finally:
+            if transport:
+                transport.close()
 
 
 

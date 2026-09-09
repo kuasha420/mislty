@@ -145,7 +145,12 @@ class NetworkHelperClient:
         res = self.run_action("disable-nat", wan_iface, lan_iface)
         return bool(res.get("success"))
 
-    def kill_pppd(self) -> bool:
+    def start_ppp(self, dev: str, apn: str = "internet") -> Dict[str, Any]:
+        """Launch pppd daemon on dev with carrier APN."""
+        return self.run_action("start-ppp", dev, "--apn", apn)
+
+    def stop_ppp(self) -> bool:
         """Terminate active pppd processes."""
-        res = self.run_action("kill-pppd")
+        res = self.run_action("stop-ppp")
         return bool(res.get("success"))
+

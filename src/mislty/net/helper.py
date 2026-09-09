@@ -158,10 +158,75 @@ def handle_disable_nat(wan_iface: str, lan_iface: str) -> Dict[str, Any]:
     return {"success": True, "action": "disable-nat", "wan": w_iface, "lan": l_iface}
 
 
-def handle_kill_pppd() -> Dict[str, Any]:
-    """Gracefully terminate active pppd processes."""
+RUN_DIR = Path("/run/mislty")
+PPP_PID_FILE = RUN_DIR / "pppd.pid"
+CHAT_FILE = RUN_DIR / "chat-mislty"
+
+
+def handle_start_ppp(dev: str, apn: str = "internet") -> Dict[str, Any]:
+    """Configure chat script and launch pppd daemon."""
+    valid_dev = validate_dev_node(dev)
+    if not RE_APN.match(apn):
+        raise ValidationError(f"Invalid APN: {apn}")
+
+    RUN_DIR.mkdir(parents=True, exist_ok=True)
+
+    chat_content = f"""ABORT "BUSY"
+ABORT "NO CARRIER"
+ABORT "NO DIALTONE"
+ABORT "ERROR"
+TIMEOUT 15
+"" AT
+OK AT+CGDCONT=1,"IP","{apn}"
+OK "ATD*99#"
+CONNECT ""
+"""
+    CHAT_FILE.write_text(chat_content, encoding="utf-8")
+    os.chmod(CHAT_FILE, 0o600)
+
+    cmd = [
+        "pppd",
+        valid_dev,
+        "115200",
+        "connect", f"/usr/bin/chat -v -f {CHAT_FILE}",
+        "noauth",
+        "nodefaultroute",
+        "usepeerdns",
+        "hide-password",
+        "noipdefault",
+        "ipcp-accept-local",
+        "ipcp-accept-remote",
+        "lcp-echo-failure", "4",
+        "lcp-echo-interval", "5",
+        "maxfail", "3",
+    ]
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    PPP_PID_FILE.write_text(f"{proc.pid}\n", encoding="utf-8")
+
+    return {"success": True, "action": "start-ppp", "pid": proc.pid, "dev": valid_dev, "apn": apn}
+
+
+def handle_stop_ppp() -> Dict[str, Any]:
+    """Terminate active pppd processes gracefully."""
+    killed = False
+    if PPP_PID_FILE.is_file():
+        try:
+            pid = int(PPP_PID_FILE.read_text(encoding="utf-8").strip())
+            os.kill(pid, signal.SIGTERM)
+            killed = True
+        except (OSError, ValueError):
+            pass
+        finally:
+            try:
+                PPP_PID_FILE.unlink(missing_ok=True)
+            except OSError:
+                pass
+
     res = execute_cmd(["killall", "-TERM", "pppd"])
-    return {"success": True, "action": "kill-pppd", "returncode": res.returncode}
+    if res.returncode == 0:
+        killed = True
+
+    return {"success": True, "action": "stop-ppp", "killed": killed}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -174,6 +239,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     # check-auth
     subparsers.add_parser("check-auth", help="Verify Polkit root execution")
+
+    # start-ppp
+    p_start_ppp = subparsers.add_parser("start-ppp", help="Launch pppd on dev with apn")
+    p_start_ppp.add_argument("dev", help="Serial device node (e.g. /dev/mislty/data)")
+    p_start_ppp.add_argument("--apn", default="internet", help="Carrier APN")
+
+    # stop-ppp
+    subparsers.add_parser("stop-ppp", help="Terminate pppd daemon")
 
     # set-default-route
     p_set_route = subparsers.add_parser("set-default-route", help="Set default route via dev")
@@ -196,9 +269,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_dis_nat.add_argument("wan", help="WAN interface")
     p_dis_nat.add_argument("lan", help="LAN interface")
 
-    # kill-pppd
-    subparsers.add_parser("kill-pppd", help="Terminate pppd processes")
-
     return parser
 
 
@@ -213,6 +283,10 @@ def main(args=None) -> None:
     try:
         if parsed.action == "check-auth":
             result = handle_check_auth()
+        elif parsed.action == "start-ppp":
+            result = handle_start_ppp(parsed.dev, parsed.apn)
+        elif parsed.action == "stop-ppp":
+            result = handle_stop_ppp()
         elif parsed.action == "set-default-route":
             result = handle_set_default_route(parsed.dev, parsed.metric)
         elif parsed.action == "restore-default-route":
@@ -221,8 +295,6 @@ def main(args=None) -> None:
             result = handle_enable_nat(parsed.wan, parsed.lan)
         elif parsed.action == "disable-nat":
             result = handle_disable_nat(parsed.wan, parsed.lan)
-        elif parsed.action == "kill-pppd":
-            result = handle_kill_pppd()
         else:
             parser.print_help()
             sys.exit(1)
@@ -235,6 +307,7 @@ def main(args=None) -> None:
     except Exception as exc:
         print(json.dumps({"error": "UNEXPECTED_ERROR", "message": str(exc)}), file=sys.stderr)
         sys.exit(2)
+
 
 
 if __name__ == "__main__":
