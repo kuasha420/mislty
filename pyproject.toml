@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mislty"
+version = "1.0.0"
+description = "Production Linux desktop suite & control daemon for Qualcomm MDM9600 / Aleka UV310 4G LTE modems"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Purrfect Software Limited (PSL)", email = "kuasha420@gmail.com" }
+]
+keywords = [
+    "qualcomm",
+    "mdm9600",
+    "lte-modem",
+    "ufi",
+    "linux",
+    "pyside6",
+    "qt6",
+    "d-bus",
+    "at-commands",
+    "ppp"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Communications :: Telephony",
+    "Topic :: System :: Networking"
+]
+dependencies = []
+
+[project.optional-dependencies]
+gui = [
+    "PySide6>=6.5.0"
+]
+test = [
+    "pytest>=7.0.0"
+]
+
+[project.scripts]
+mislty = "mislty.cli.main:main"
+misltyd = "mislty.core.daemon:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mislty"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "hardware: live hardware integration tests"
+]
+
