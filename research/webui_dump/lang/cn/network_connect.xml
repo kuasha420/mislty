@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>	
+	<!-- ui -->
+	<lang id="ui_current_flux" 		string="本次流量:" />
+	<lang id="ui_total_flux" 		string="累计流量:" />
+	<lang id="ui_connected_time" 	string="连接时长:" />
+	<lang id="ui_wireless_network" 	string="接入用户列表" />
+	<lang id="ui_station" 			string="接入用户" />
+	<lang id="ui_mac_address" 		string="MAC地址" />
+
+	<!-- button -->
+	<lang id="btn_refresh" 			string="刷新" />
+
+	
+	<!-- tip -->
+	<lang id="tip_connect" 			string="连接" />
+	<lang id="tip_disconnect" 		string="断开" />
+	<lang id="tip_bytes"			string="字节" />
+</root>

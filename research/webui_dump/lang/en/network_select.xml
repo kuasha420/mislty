@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_network_select" 		string="Network Select" />
+	<lang id="ui_automatic" 			string="Automatic" />
+	
+	<lang id="ui_wcdma_preferred" 		string="WCDMA Preferred" />
+	<lang id="ui_gsm_preferred" 		string="GSM Preferred" />
+	<lang id="ui_wcdma_only" 			string="WCDMA Only" />
+	<lang id="ui_gsm_only" 			    string="GSM Only" />
+	
+	<lang id="ui_cdma_only" 			string="CDMA Only" />
+	<lang id="ui_evdo_only" 			string="EVDO Only" />
+	<lang id="ui_note" 					string="Note: Please set network select before disconnect the net connect!" />
+	
+	<!-- button -->
+	<lang id="btn_disconnect" 			string="Disconnect" />
+	<lang id="btn_apply" 				string="Apply" />
+	<lang id="btn_reset" 				string="Reset" />
+
+	<!-- tip -->
+	<!--lang id="tip_id" 		string="Test" /-->
+</root>

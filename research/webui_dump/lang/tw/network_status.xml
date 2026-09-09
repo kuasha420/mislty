@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_network_status_title" 	string="網絡狀態" />
+	<lang id="ui_wan_information" 		string="WAN信息" />
+	<lang id="ui_network_status" 		string="連接狀態:" />
+	<lang id="ui_primary_dns" 			string="主DNS:" />
+	<lang id="ui_ip_address1" 			string="IP地址:" />
+	<lang id="ui_secondary_dns" 		string="從DNS:" />
+	<lang id="ui_wlan_current_status" 	string="WLAN當前狀態" />
+	<lang id="ui_ssid" 					string="網絡名稱(SSID):" />
+	<lang id="ui_channel" 				string="信道:" />
+	<lang id="ui_security_mode" 		string="安全模式:" />
+	<lang id="ui_lan_and_wlan_information" 		string="LAN與WLAN信息" />
+	<lang id="ui_subnet_mask" 			string="子網掩碼:" />
+	<lang id="ui_default_gateway" 		string="默認網關:" />
+	<lang id="ui_dhcp_server" 			string="DHCP服務:" />
+	<lang id="ui_ip_address2" 			string="IP地址:" />
+	<!-- button -->
+	<!--lang id="btn_id" 	string="Test" /-->
+	
+	<!-- tip -->
+	<lang id="tip_auto" 				string="自動" />
+	<lang id="tip_connected" 			string="已連接" />
+	<lang id="tip_ondemand" 			string="按需連接" />
+	<lang id="tip_disconnected" 		string="已斷開" />
+	<lang id="tip_enable"		 		string="已啓用" />
+	<lang id="tip_disable"		 		string="已禁用" />
+	<lang id="tip_unknown"		 		string="未知" />
+	<lang id="tip_undefined"		 	string="未定義" />
+	<lang id="tip_open"		 			string="開放" />
+</root>

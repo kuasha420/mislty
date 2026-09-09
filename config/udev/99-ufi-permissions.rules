@@ -1,1 +1,22 @@
-KERNEL=="ttyUSB*", SUBSYSTEMS=="usb", ATTRS{idVendor}=="05c6", ATTRS{idProduct}=="6000", MODE="0666", GROUP="uucp"
+# MisLTy / Qualcomm MDM9600 (Aleka UV310) Udev Rules
+# Hardware: Aleka Incorporated UV310 (05c6:6000)
+
+# 1. Ignore in ModemManager to prevent SIGSEGV in g_hash_table_lookup
+#    and unmanage in NetworkManager to ensure direct MisLTy control
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="05c6", ATTRS{idProduct}=="6000", ENV{ID_MM_DEVICE_IGNORE}="1", ENV{NM_UNMANAGED}="1"
+
+# 2. Grant user-space permissions (read/write for all users or uucp group)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="05c6", ATTRS{idProduct}=="6000", MODE="0666", GROUP="uucp"
+
+# 3. Create deterministic symlinks mapped to physical USB interfaces
+# Interface 0: MI_00 - Primary Modem Data Plane (pppd / ATD*99#)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="05c6", ATTRS{idProduct}=="6000", ENV{ID_USB_INTERFACE_NUM}=="00", SYMLINK+="mislty/modem", SYMLINK+="mislty/data"
+
+# Interface 1: MI_01 - Secondary Command & Control (AT queries, URCs +CMTI/+CMGS/RING)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="05c6", ATTRS{idProduct}=="6000", ENV{ID_USB_INTERFACE_NUM}=="01", SYMLINK+="mislty/control", SYMLINK+="mislty/at"
+
+# Interface 2: MI_02 - Voice Device Port (8000 Hz 16-bit Mono Linear PCM stream)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="05c6", ATTRS{idProduct}=="6000", ENV{ID_USB_INTERFACE_NUM}=="02", SYMLINK+="mislty/voice", SYMLINK+="mislty/pcm"
+
+# Interface 3: MI_03 - Qualcomm Diagnostic Monitor (QCDM / NVRAM diagnostics)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="05c6", ATTRS{idProduct}=="6000", ENV{ID_USB_INTERFACE_NUM}=="03", SYMLINK+="mislty/diag", SYMLINK+="mislty/qcdm"

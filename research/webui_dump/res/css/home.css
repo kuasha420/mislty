@@ -1,0 +1,44 @@
+@charset "utf-8";
+html,body,div,span,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,address,del,img,ins,q,
+em,strong,dfn,code,samp,kbd,var,cite,
+small,sub,sup,b,i,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td
+{margin:0;padding:0;border:0;font-size:100%;font:inherit;vertical-align:baseline;}
+body                        {line-height:1;}
+ol,ul                       {list-style:none;}
+table                       {border-collapse:collapse;border-spacing:0;}
+
+input,label,select          {vertical-align:middle;}
+textarea,select             {overflow:auto;border:1px solid #ccc;}
+input.checkbox,input.radio    {border:0;height:13px;width:13px;margin:2px;outline:0;}
+label                       {cursor:pointer;}
+
+body        {font:12px/18px Tahoma,Helvetica,Arial,sans-serif;background:#aaa;/*_behavior:url(res/htc/csshover3.htc);*/}
+a           {text-decoration:none;color:#0093DD;outline:0;}
+a:hover     {text-decoration:underline;color:#000;}
+a.active    {font-weight:700;}
+
+* html a {behavior:url(res/htc/blur.htc);/*IE only*/}
+ul,li {list-style-type:none; text-transform:capitalize;}
+.clear {clear:both; *display:inline;/*IE only*/}
+
+.wrap    {margin:0 auto;width:800px;height:auto;background:#fff;}
+
+.header	{height:100px;line-height:100px;background:url(../img/logo.gif) no-repeat;}
+.header .logout {height:20px;line-height:20px;text-align:right;font-size:14px;padding:15px 20px 5px 25px;font-weight:700;}
+.header .status {height:40px;line-height:40px;padding-top:20px;}
+.header .status img {float:right;}
+
+
+.menu {height:85px;background:url(../img/menu_bg.png);}
+.menu .sub {float:left; width:114px;height:85px;/*IE6 only*/}
+.menu .sub .item {font-size:14px;color:#fff;height:80px;padding-top:5px;line-height:20px;}
+.menu .sub a {color:#fff; height:26px; line-height:26px; display:block;width:112px;text-align:center;font-size:12px;}
+.menu .sub a:hover {color:#fff; text-decoration:none; background:#999;}
+.menu .sub ul {display:none; position:absolute;}
+.menu .sub li {background:#666;width:112px;/*IE6 only*/}	
+.menu .sub ul li a {text-align:left;padding-left:10px;width:102px;}
+
+#ui_copyright {height:50px;border-top:1px #ccc dotted;line-height:50px;text-align:center;font-size:12px;font-weight:bold;color:#333;}
+
+.overlay{display:none;width:100%;height:100%;position:fixed;top:0;left:0;z-index:998;top:0;left:0;background-color:#000;filter:alpha(opacity=20);-moz-opacity:0.2;-khtml-opacity:0.2;opacity:0.2;}
+.box{display:none;border:0px;width:300px;position:absolute;top:100px;left:40%;z-index:999;}

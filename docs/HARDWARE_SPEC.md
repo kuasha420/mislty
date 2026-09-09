@@ -56,7 +56,7 @@ This device is a multi-mode 4G LTE/3G cellular USB modem and portable Wi-Fi rout
 - **Antenna**: Internal omnidirectional PCB trace antenna.
 - **Interconnect**: Interfaced to the Qualcomm MDM9600 via internal SDIO/UART bus.
 - **Control**: Controlled from the host via vendor-specific Broadcom AT commands (`AT^WI...` and `AT+WIFI`).
-- **Default SSID Format**: User-defined or `"TypeScript 420"62C` (with last 3 hex digits of BSSID).
+- **Default SSID Format**: User-defined (e.g. `TypeScript 420` via Web UI; serial `AT^SSID` command appends 3-char BSSID suffix e.g. `TypeScript 42062C`).
 
 #### 3.3 Storage Subsystem
 - **Mass Storage Controller**: Qualcomm integrated MMC host controller.

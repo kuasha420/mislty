@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_apn_setting" 		string="APN設置" />
+	<lang id="ui_cimi" 			    string="國際移動標識碼" />
+	<lang id="ui_apn_name" 			string="運營商名稱" />
+	<lang id="ui_dial_number" 		string="撥號號碼" />
+	<lang id="ui_username"		    string="用戶名" />
+	<lang id="ui_password"		    string="密碼" />
+	<lang id="ui_auth"				string="鑒權模式" />
+	<lang id="ui_apn"   		    string="APN" />
+	
+	<!-- button -->
+	<lang id="btn_add" 				string="增加" />
+	<lang id="btn_edit" 			string="編輯" />
+	<lang id="btn_del" 				string="刪除" />
+	<lang id="btn_apply" 			string="應用" />
+	<lang id="btn_reset" 			string="重置" />
+
+	<!-- tip -->
+	<lang id="tip_notice"       string="請先插入SIM卡！" />
+	<lang id="tip_del"          string="您確認要刪除此APN記錄嗎?" />
+	<lang id="ui_note"			string="註意: 增加、修改、刪除APN信息設備將會自動重啟." />
+</root>

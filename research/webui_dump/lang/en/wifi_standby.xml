@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_wifi_standby" 			string="Wi-Fi Standby" />
+	<lang id="ui_sleep_mode" 			string="Sleep Mode" />
+	<lang id="ui_disable" 				string="Disable" />
+	<lang id="ui_enable" 				string="Enable" />
+	<lang id="ui_sleep_time" 			string="Sleep Time" />
+	<lang id="ui_5_minutes" 			string="5 minutes" />
+	<lang id="ui_10_minutes" 			string="10 minutes" />
+	<lang id="ui_20_minutes" 			string="20 minutes" />
+	<lang id="ui_30_minutes" 			string="30 minutes" />
+	<lang id="ui_1_hours" 				string="1 hours" />
+	<lang id="ui_2_hours" 				string="2 hours" />
+	<lang id="ui_always_on" 			string="Always on" />
+
+	<!-- button -->
+	<lang id="btn_apply" 				string="Apply" />
+	<lang id="btn_reset" 				string="Reset" />
+	
+	<!-- tip -->
+	<!--lang id="tip_id" 		string="Test" /-->
+</root>

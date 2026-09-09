@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_network_status_title" 	string="Network Status" />
+	<lang id="ui_wan_information" 		string="WAN Information" />
+	<lang id="ui_network_status" 		string="Network Status:" />
+	<lang id="ui_primary_dns" 			string="Primary DNS:" />
+	<lang id="ui_ip_address1" 			string="IP Address:" />
+	<lang id="ui_secondary_dns" 		string="Secondary DNS:" />
+	<lang id="ui_wlan_current_status" 	string="WLAN Current Status" />
+	<lang id="ui_ssid" 					string="SSID:" />
+	<lang id="ui_channel" 				string="Channel:" />
+	<lang id="ui_security_mode" 		string="Security Mode:" />
+	<lang id="ui_lan_and_wlan_information" 		string="LAN and WLAN Information" />
+	<lang id="ui_subnet_mask" 			string="Subnet Mask:" />
+	<lang id="ui_default_gateway" 		string="Default Gateway:" />
+	<lang id="ui_dhcp_server" 			string="DHCP Server:" />
+	<lang id="ui_ip_address2" 			string="IP Address:" />
+	<!-- button -->
+	<!--lang id="btn_id" 	string="Test" /-->
+	
+	<!-- tip -->
+	<lang id="tip_auto" 				string="Auto" />
+	<lang id="tip_connected" 			string="Connected" />
+	<lang id="tip_ondemand" 			string="OnDemand" />
+	<lang id="tip_disconnected" 		string="Disconnected" />
+	<lang id="tip_enable"		 		string="Enable" />
+	<lang id="tip_disable"		 		string="Disable" />
+	<lang id="tip_unknown"		 		string="Unknown" />
+	<lang id="tip_undefined"		 	string="Undefined" />
+	<lang id="tip_open"		 			string="Open" />
+</root>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_connection_mode" 	string="连接模式" />
+	<lang id="ui_automatic_dialup" 	string="自动拨号" />
+	<lang id="ui_manual_dialup" 	string="手动拨号" />
+	
+	<!-- button -->
+	<lang id="btn_apply" 			string="应用" />
+	<lang id="btn_reset" 			string="重置" />
+	
+	<!-- tip -->
+	<!--lang id="tip_id" 		string="Test" /-->
+</root>

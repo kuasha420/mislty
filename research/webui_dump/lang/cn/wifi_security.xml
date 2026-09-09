@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_wifi_security" 	string="Wi-Fi安全设置" />
+	<lang id="ui_secruity_mode" 	string="安全模式" />
+	<lang id="ui_no_encryption" 	string="不加密" />
+	<lang id="ui_pass_phrase" 		string="通行码" />
+	<lang id="ui_characters" 		string="字符" />
+	<lang id="ui_note" 				string="注意: 在提交设置后，需要重新启动uFi设备，修改后的设置才会生效！" />
+
+	<!-- button -->
+	<lang id="btn_apply" 			string="应用" />
+	<lang id="btn_reset" 			string="重置" />
+	
+	<!-- tip -->
+	<lang id="tip_note" 			string="通行码的长度必须为8到10字符，仅能包含字母(A-Z,a-z)、数字(0-9)、中划线(-)" />
+	<lang id="tip_reboot"				string="您需要立即重启设备吗？" />
+</root>

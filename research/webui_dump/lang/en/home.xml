@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_logout" 			string="Logout" />
+	
+	<lang id="ui_home" 				string="Home" />
+	<lang id="ui_network_connect"	string="Network Connect"/>
+	<lang id="ui_reset_factory" 	string="Reset Factory" />
+	<lang id="ui_pin_setting" 		string="PIN Settings" />
+	<lang id="ui_dhcp_setting" 		string="DHCP Settings" />
+	<lang id="ui_system_upgrade" 	string="System Upgrade" />
+	<lang id="ui_update_password" 	string="Update Password" />
+	<lang id="ui_data_statistics" 	string="Data Statistics" />
+	<lang id="ui_ap_setting" 		string="AP Settings" />
+	<lang id="ui_help_information" 	string="Help Information" />
+	
+	<lang id="ui_3g_setting" 		string="4G Settings" />
+	<lang id="ui_connection_mode" 	string="Connection Mode" />
+	<lang id="ui_network_selection" string="Network Selection" />
+	<lang id="ui_apn_setting"       string="APN Settings" />
+	
+	
+	<lang id="ui_quick_setting" 	string="Quick Settings" />
+	<lang id="ui_wifi_setting" 		string="Wi-Fi Settings" />
+	<lang id="ui_wifi_profile" 		string="Wi-Fi Profiles" />
+	<lang id="ui_wifi_security" 	string="Wi-Fi Security" />
+	<lang id="ui_wifi_standby" 		string="Wi-Fi Standby" />
+	<lang id="ui_station_list" 		string="Station List" />
+	
+	<lang id="ui_phonebook" 		string="Phonebook" />
+	<lang id="ui_phonebook_device" 	string="Device" />
+	<lang id="ui_phonebook_uim" 	string="UIM Card" />
+	<lang id="ui_phonebook_new" 	string="New Phonebook" />
+	
+	<lang id="ui_sms" 				string="SMS" />
+	<lang id="ui_sms_device" 		string="Device" />
+	<lang id="ui_sms_uim" 			string="UIM Card" />
+	<lang id="ui_sms_setting"		string="SMS Settings" />
+	<lang id="ui_sms_new" 			string="New Message" />
+	
+	<lang id="ui_sdcard" 			string="SD Card" />
+	<lang id="ui_sdcard_share" 		string="SD Card Share" />
+	<lang id="ui_sdcard_setting" 	string="SD Card Settings" />
+	<lang id="ui_http_share" 		string="HTTP Share" />
+	
+	<lang id="ui_status" 			string="Status" />
+	<lang id="ui_basic_status" 		string="Basic Status" />
+	<lang id="ui_network_status" 	string="Network Status" />
+
+	<lang id="ui_copyright" 		string="&amp;copy; 2014 QUALCOMM" />
+	
+	<!-- tip -->
+	<lang id="tip_logout_confirm" 	string="Do you confirm to logout?" />
+</root>

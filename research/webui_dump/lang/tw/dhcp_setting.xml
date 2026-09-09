@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_dhcp_settings" 		string="DHCP設置" />
+	<lang id="ui_ip_address" 			string="IP地址" />
+	<lang id="ui_subnet_mask" 			string="子網掩碼" />
+	<lang id="ui_mac_address" 			string="MAC地址" />
+	<lang id="ui_dhcp_server" 			string="DHCP服務" />
+	<lang id="ui_disable" 				string="禁用" />
+	<lang id="ui_enable" 				string="啓用" />
+	<lang id="ui_dhcp_ip_pool" 			string="IP地址範圍" />
+	<lang id="ui_dhcp_lease_time" 		string="DHCP租憑時間" />
+	<lang id="ui_hour" 					string="小時" />
+	<lang id="ui_note" 					string="注意: 在提交設置後，需要重新啓動uFi設備，修改後的設置才會生效！" />
+	
+	<!-- button -->
+	<lang id="btn_apply" 				string="應用" />
+	<lang id="btn_reset" 				string="重置" />
+	
+	<!-- tip -->
+	<!--lang id="tip_id" 		string="Test" /-->
+	<lang id="tip_reboot"				string="您需要立即重啟設備嗎？" />
+</root>

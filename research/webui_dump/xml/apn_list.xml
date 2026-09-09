@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?> <root> <!--apn name="CTI" cimi="722310" phone="*99#" user="ctigprs" pwd="" domain="internet.ctimovil.com.ar" auth="3" /-->
+<apn name="CTI" cimi="722310" phone="*99#" user="ctigprs" pwd=""
+domain="internet.ctimovil.com.ar" auth="3" /> <apn
+name="China Mobile(00)" cimi="46000" phone="*99#" user="" pwd=""
+domain="cmnet" auth="3" /> <apn name="China Mobile(02)" cimi="46002"
+phone="*99#" user="" pwd="" domain="cmnet" auth="3" /> <apn
+name="China Mobile(04)" cimi="46004" phone="*99#" user="" pwd=""
+domain="cmnet" auth="3" /> <apn name="China Mobile(07)" cimi="46007"
+phone="*99#" user="" pwd="" domain="cmnet" auth="3" /> <apn
+name="China Unicom(3gnet)" cimi="46001" phone="*99#" user="" pwd=""
+domain="3gnet" auth="3" /> <apn name="China Unicom(wonet)" cimi="46001"
+phone="*99#" user="" pwd="" domain="wonet" auth="3" /> <apn
+name="China Unicom(uninet)" cimi="46001" phone="*99#" user="" pwd=""
+domain="uninet" auth="3" /> <apn name="China Unicom(06)" cimi="46006"
+phone="*99#" user="" pwd="" domain="3gnet" auth="3" /> <apn
+name="China Unicom(09)" cimi="46009" phone="*99#" user="" pwd=""
+domain="3gnet" auth="3" /> <apn name="China Telecom(11)" cimi="46011"
+phone="*99#" user="" pwd="" domain="" auth="3" /> <apn
+name="China Telecom(03)" cimi="46003" phone="#777" user="ctnet@mycdma.cn"
+pwd="vnet.mobi" domain="" auth="3" /> <apn name="PTCL" cimi="41051"
+phone="*99#" user="vwireless@eagle.com" pwd="ptcl" domain="" auth="3" /> <apn
+name="Banglalink 4G" cimi="47003" phone="*99#" user="" pwd=""
+domain="blweb" auth="3" /></root>

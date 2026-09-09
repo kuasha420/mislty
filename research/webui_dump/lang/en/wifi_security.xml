@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_wifi_security" 	string="Wi-Fi Security" />
+	<lang id="ui_secruity_mode" 	string="Security Mode" />
+	<lang id="ui_no_encryption" 	string="NO ENCRYPTION" />
+	<lang id="ui_pass_phrase" 		string="Pass Phrase" />
+	<lang id="ui_characters" 		string="characters" />
+	<lang id="ui_note" 				string="Note: After you click Apply, The Wi-Fi security settings will be effective after rebooting the uFi device." />
+
+	<!-- button -->
+	<lang id="btn_apply" 			string="Apply" />
+	<lang id="btn_reset" 			string="Reset" />
+	
+	<!-- tip -->
+	<lang id="tip_note" 			string="Pass Phrase's length must be between 8 to 10 characters,must be include: letters(A-Z,a-z),digits(0-9),hyphens(-)" />
+	<lang id="tip_reboot"			string="Do you want to immediately restart your device?" />
+</root>

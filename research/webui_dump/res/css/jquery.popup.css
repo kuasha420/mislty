@@ -1,0 +1,29 @@
+﻿html                {overflow-x:hidden}
+body,p              {margin:0;padding:0;font:12px/1 Tahoma,Helvetica,Arial,sans-serif}
+
+#overlay            {position:fixed;top:0;left:0;width:100%;height:100%;background-color:#000;filter:alpha(opacity=20);-moz-opacity:0.2;-khtml-opacity:0.2;opacity:0.2;}
+#popup              {position:fixed;color:#000}
+#popup div.shadow   {position:relative;width:100%;height:100%;background:url(popup_shadow.png);}
+#popup div.header   {background:#eee;font-weight:700;padding:0 4px;height:24px;line-height:24px;-webkit-user-select:none;-moz-user-select:none;}
+#popup div.close    {float:right;width:14px;height:14px;line-height:14px;padding:5px 0;text-align:center}
+#popup div.close a  {color:#666;text-decoration:none;outline:0;display:block;width:14px;height:14px;background:url(popup.png) no-repeat;}
+#popup div.close a:hover{background:url(popup.png) no-repeat -34px 0;}
+#popup div.title    {margin-right:14px;height:24px;line-height:24px;cursor:move;font-weight:700}
+#popup div.main     {position:absolute;top:-5px;left:-5px;border:1px solid #ccc;background:#fff;color:#555}
+#popup div.content  {clear:both;}
+
+#popup div.content div {padding:22px 4px 12px 48px;line-height:150%;background:url(popup.png) no-repeat;}
+#popup div.content div.text_0 {padding:4px;background:none;}
+#popup div.content div.text_1 {background-position:0 -64px;}
+#popup div.content div.text_2 {background-position:0 -112px;}
+#popup div.content div.text_-1 {background-position:0 -16px;}
+
+#popup div.content iframe {margin:0;padding:0}
+#popup div.footer   {height:24px;text-align:right;padding:4px 2px 3px 0;background:#eee;}
+#popup div.footer a {text-decoration:none;outline:0;display:inline-block;background:#eee;border:1px solid #ccc;color:#555;font:12px/1 Tahoma;height:18px;line-height:18px;padding:2px 15px;margin:0 6px; 
+                    -moz-border-radius:6px;-webkit-border-radius:6px;
+                    -webkit-transition-property: background-color;
+                    -webkit-transition-duration: 0.3s;
+                    -webkit-transition-timing-function: ease;
+                    }
+#popup div.footer a:hover{background:#fff;}

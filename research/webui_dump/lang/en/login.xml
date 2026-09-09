@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_login_title" 	string="Administrator Login" />
+	<lang id="ui_username" 		string="Username" />
+	<lang id="ui_password" 		string="Password" />
+	<lang id="ui_language" 		string="Language" />
+	<lang id="ui_copyright" 	string="&amp;copy; 2014 QUALCOMM" />
+	
+	<!-- button -->
+	<lang id="btn_login" 		string="Login" />
+	<lang id="btn_cancel" 		string="Cancel" />
+	
+	<!-- tip -->
+	<lang id="tip_login_error" string="The username or password is incorrect!" />
+</root>

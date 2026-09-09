@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_network_select" 		string="网络选择" />
+	<lang id="ui_automatic" 			string="自动" />
+	
+	<lang id="ui_wcdma_preferred" 		string="优先WCDMA" />
+	<lang id="ui_gsm_preferred" 		string="优先GSM" />
+	<lang id="ui_wcdma_only" 			string="仅WCDMA" />
+	<lang id="ui_gsm_only" 			    string="仅GSM" />
+	
+	<lang id="ui_cdma_only" 			string="仅CDMA" />
+	<lang id="ui_evdo_only" 			string="仅EVDO" />
+	<lang id="ui_note" 					string="注意: 请先断开连接后设置网络选择!" />
+	
+	<!-- button -->
+	<lang id="btn_disconnect" 			string="断开网络" />
+	<lang id="btn_apply" 				string="应用" />
+	<lang id="btn_reset" 				string="重置" />
+
+	<!-- tip -->
+	<!--lang id="tip_id" 		string="Test" /-->
+</root>

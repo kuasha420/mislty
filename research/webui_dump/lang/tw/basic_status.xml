@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_basic_status" 			string="基本狀態" />
+	<lang id="ui_3g_information" 		string="3G信息" />
+	<lang id="ui_network_provider" 		string="網絡運營商:" />
+	<lang id="ui_roam" 					string="漫遊:" />
+	<lang id="ui_network_type" 			string="網絡類型:" />
+	<lang id="ui_domain" 				string="域:" />
+	<lang id="ui_rssi" 					string="RSSI:" />
+	<lang id="ui_evdo_rssi" 			string="EVDO RSSI:" />
+	<lang id="ui_ec_io" 				string="Ec/Io:" />
+	<lang id="ui_cell_id" 				string="Cell ID:" />
+	<lang id="ui_system_information"	string="系統信息" />
+	<lang id="ui_imei"					string="IMEI:" />
+	<lang id="ui_firmware_version"		string="固件版本:" />
+	<lang id="ui_software_version"		string="軟件版本:" />
+	<lang id="ui_hardware_version"		string="硬件版本:" />
+	
+	<!-- button -->
+	<!--lang id="btn_id" 	string="Test" /-->
+	
+	<!-- tip -->
+	<lang id="tip_on" 					string="開啟" />
+	<lang id="tip_off" 					string="關閉" />
+	<lang id="tip_on" 					string="未知" />
+	<lang id="tip_limited_service"		string="限制服務" />
+	<lang id="tip_no_service"			string="無服務" />
+</root>

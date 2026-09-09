@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_data_statistics" 	string="数据统计" />
+	<lang id="ui_speed" 			string="速度" />
+	<lang id="ui_up" 				string="上行" />
+	<lang id="ui_download" 			string="下行" />
+	<lang id="ui_connected_time" 	string="连接时长" />
+	<lang id="ui_downloaded" 		string="已下载" />
+	<lang id="ui_uploaded" 			string="已上传" />
+	<lang id="ui_total_traffic" 	string="总传输" />
+	<lang id="ui_current" 			string="当前传输" />
+	<lang id="ui_total" 			string="总计" />
+	<lang id="ui_note" 				string="数据仅供参考，实际流量以运营商网络侧记录为准。" />
+
+	<!-- button -->
+	<lang id="btn_clear" 			string="清空" />
+	
+	<!-- tip -->
+	<!--lang id="tip_id" 		string="Test" /-->
+</root>

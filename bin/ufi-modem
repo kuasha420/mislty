@@ -199,7 +199,6 @@ def get_status():
     pwd = send_at_command("AT^WFPWD?", port)
 
     wifi_pref = "+WIFI:1" in wifi
-    rf_transmitting = "^WIENABLE:1" in wienable.replace(" ", "")
 
     ssid_str = "TypeScript 420"
     for line in ssid.splitlines():
@@ -212,15 +211,13 @@ def get_status():
         if "wl_wpa_psk_key" in line:
             pwd_str = line.split("=", 1)[-1].strip()
 
-    if wifi_pref and rf_transmitting:
-        wifi_display = "🟢 ACTIVE (Broadcasting)"
-    elif wifi_pref and not rf_transmitting:
+    if wifi_pref:
         if is_connected:
-            wifi_display = "⏸️  SUSPENDED (USB PPP Active - Radio Muted)"
+            wifi_display = "🟢 ACTIVE (Local WLAN Only - Cellular WAN via USB)"
         else:
-            wifi_display = "⏸️  SUSPENDED / INITIALIZING"
+            wifi_display = "🟢 ACTIVE (Broadcasting & 4G Router)"
     else:
-        wifi_display = "⚪ DISABLED (USB Modem Only)"
+        wifi_display = "⚪ DISABLED (Power Saving / Pure USB Modem)"
 
     print("--------------------------------------------------------")
     print(f"📻 Wi-Fi AP Mode:    {wifi_display}")
@@ -263,15 +260,52 @@ def wifi_control(action, param=None):
             return
         clean_ssid = param.strip().strip('"').strip("'")
         print(f"🔄 Setting Wi-Fi SSID to: '{clean_ssid}'...")
-        resp = send_at_command(f"AT^SSID={clean_ssid}", port)
-        time.sleep(2)
-        send_at_command("AT+WRWIFI")
-        print("🔄 Cycling Wi-Fi radio to broadcast new SSID...")
-        send_at_command("AT+WIFI=0")
-        time.sleep(1)
-        send_at_command("AT+WIFI=1")
-        print("✅ SSID updated and saved to NVRAM.")
-        print("   Note: Hardware firmware automatically appends the unique 3-char BSSID hex suffix.")
+        
+        # Check if embedded Web API is reachable (writes clean un-suffixed SSID)
+        web_ok = False
+        try:
+            import urllib.request
+            import urllib.parse
+            import http.cookiejar
+            
+            cj = http.cookiejar.CookieJar()
+            opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+            login_data = urllib.parse.urlencode({"goformId": "LOGIN_NEW", "user": "admin", "psw": "admin"}).encode()
+            req = urllib.request.Request("http://192.168.100.1/goform/goform_process", data=login_data)
+            with opener.open(req, timeout=1.5) as resp:
+                pass
+            form_data = urllib.parse.urlencode({
+                "goformId": "WIFI_BASIC",
+                "lucknum_WIFI_BASIC": "123456",
+                "wirelessmode": "0",
+                "ssid": clean_ssid,
+                "broadcastssid": "1",
+                "channel": "0",
+                "Allow_MAX_STAs": "8"
+            }).encode()
+            req2 = urllib.request.Request("http://192.168.100.1/goform/goform_process", data=form_data)
+            with opener.open(req2, timeout=1.5) as resp:
+                web_ok = True
+        except Exception:
+            web_ok = False
+
+        if web_ok:
+            # Cycle radio via AT command to apply immediately
+            send_at_command("AT+WIFI=0", port)
+            time.sleep(1)
+            send_at_command("AT+WIFI=1", port)
+            print(f"✅ Clean SSID '{clean_ssid}' saved to NVRAM via GoForm Web API (no MAC suffix).")
+        else:
+            resp = send_at_command(f"AT^SSID={clean_ssid}", port)
+            time.sleep(2)
+            send_at_command("AT+WRWIFI", port)
+            print("🔄 Cycling Wi-Fi radio to broadcast new SSID...")
+            send_at_command("AT+WIFI=0", port)
+            time.sleep(1)
+            send_at_command("AT+WIFI=1", port)
+            print(f"✅ SSID '{clean_ssid}' saved to NVRAM via serial AT command.")
+            print("   Note: Qualcomm AMSS AT^SSID parser automatically appends the 3-char BSSID hex suffix.")
+            print("   (To set a clean SSID without suffix, configure via Web UI http://192.168.100.1/).")
     elif action == "password":
         if not param:
             print("⚠️ Usage: ufi-modem wifi password <key>")

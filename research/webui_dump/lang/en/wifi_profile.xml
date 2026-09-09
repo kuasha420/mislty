@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_wifi_profiles" 		string="Wi-Fi Profiles" />
+	<lang id="ui_network_mode" 			string="Network Mode" />
+	<lang id="ui_11b_only" 				string="11b Only" />
+	<lang id="ui_11g_only" 				string="11g Only" />
+	<lang id="ui_n_only" 				string="802.11n Only" />
+	<lang id="ui_bg_mixed" 				string="11b/g Mixed Mode" />
+	<lang id="ui_bgn_mixed" 			string="802.11 b/g/n" />
+	<lang id="ui_network_name" 			string="Network Name (SSID)" />
+	<lang id="ui_ssid_broadcast" 		string="SSID Broadcast" />
+	<lang id="ui_enable" 				string="Enable" />
+	<lang id="ui_disable" 				string="Disable" />
+	<lang id="ui_ap_isolation" 			string="AP Isolation" />
+	<lang id="ui_enable1" 				string="Enable" />
+	<lang id="ui_disable1" 				string="Disable" />
+	<lang id="ui_country" 				string="Country" />
+	<lang id="ui_none" 					string="None" />
+	<lang id="ui_frequency_channel" 	string="Frequency (Channel)" />
+	<lang id="ui_auto"	 				string="Auto" />
+	<lang id="ui_rate"					string="Rate" />
+	<lang id="ui_distance_setting" 		string="Distance Setting" />
+	<lang id="ui_long_distance" 		string="Long distance" />
+	<lang id="ui_middle_distance" 		string="Middle distance" />
+	<lang id="ui_short_distance" 		string="Short distance" />
+	<lang id="ui_max_sataion_number" 	string="Max Station Number" />
+	<lang id="ui_note" 					string="Note: After you click Apply, The Wi-Fi profile settings will be effective after rebooting the uFi device." />
+
+	<!-- button -->
+	<lang id="btn_apply" 				string="Apply" />
+	<lang id="btn_reset" 				string="Reset" />
+	
+	<!-- tip -->
+	<lang id="tip_auto" 				string="Auto" />
+	<lang id="tip_reboot"				string="Do you want to immediately restart your device?" />
+</root>

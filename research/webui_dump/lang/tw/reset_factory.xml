@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_reset_factory" 	string="恢複出廠設置" />
+
+	<!-- button -->
+	<lang id="btn_reset_factory" 	string="恢複出廠設置" />
+	
+	<!-- tip -->
+	<lang id="tip_note" 			string="你已經成功注銷，設備即將重啓。 &lt;br&gt;設備將自動重新建立連接， 請稍後...&lt;br&gt;如果連接失敗，通常情況是由于您的設備連接上了另一個不同的網絡。" />
+</root>

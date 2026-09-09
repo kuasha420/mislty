@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_logout" 			string="注銷" />
+	
+	<lang id="ui_home" 				string="首頁" />
+	<lang id="ui_network_connect"	string="網絡連接"/>
+	<lang id="ui_reset_factory" 	string="恢複出廠設置" />
+	<lang id="ui_pin_setting" 		string="PIN碼設置" />
+	<lang id="ui_dhcp_setting" 		string="DHCP設置" />
+	<lang id="ui_system_upgrade" 	string="升級系統" />
+	<lang id="ui_update_password" 	string="修改密碼" />
+	<lang id="ui_data_statistics" 	string="數據統計" />
+	<lang id="ui_ap_setting" 		string="AP設置" />
+	<lang id="ui_help_information" 	string="幫助信息" />
+	
+	<lang id="ui_3g_setting" 		string="4G" />
+	<lang id="ui_connection_mode" 	string="連接模式" />
+	<lang id="ui_network_selection"	string="網絡選擇" />
+	<lang id="ui_apn_setting"       string="APN設置" />
+	
+	<lang id="ui_wifi_setting" 		string="Wi-Fi" />
+	<lang id="ui_quick_setting" 	string="快速設置" />
+	<lang id="ui_wifi_profile" 		string="基本設置" />
+	<lang id="ui_wifi_security" 	string="安全設置" />
+	<lang id="ui_wifi_standby" 		string="休眠設置" />
+	<lang id="ui_station_list" 		string="接入用戶" />
+	
+	<lang id="ui_phonebook" 		string="電話簿" />
+	<lang id="ui_phonebook_device" 	string="設備側" />
+	<lang id="ui_phonebook_uim" 	string="UIM卡側" />
+	<lang id="ui_phonebook_new" 	string="新建電話簿" />
+	
+	<lang id="ui_sms" 				string="短消息" />
+	<lang id="ui_sms_device" 		string="設備側" />
+	<lang id="ui_sms_uim" 			string="UIM卡側" />
+	<lang id="ui_sms_setting"		string="短消息設置" />
+	<lang id="ui_sms_new" 			string="新建短消息" />
+	
+	<lang id="ui_sdcard_share" 		string="SD卡共享" />
+	<lang id="ui_sdcard_setting" 	string="SD卡設置" />
+	<lang id="ui_http_share" 		string="HTTP共享模式" />
+	
+	<lang id="ui_status" 			string="狀態" />
+	<lang id="ui_basic_status" 		string="基本狀態" />
+	<lang id="ui_network_status" 	string="網絡狀態" />
+
+	<lang id="ui_copyright" 		string="&amp;copy; 2014 高通" />
+	
+	<!-- tip -->
+	<lang id="tip_logout_confirm" 	string="您確定要注銷嗎?" />
+</root>

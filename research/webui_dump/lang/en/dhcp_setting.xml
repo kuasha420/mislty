@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_dhcp_settings" 		string="DHCP Settings" />
+	<lang id="ui_ip_address" 			string="IP Address" />
+	<lang id="ui_subnet_mask" 			string="Subnet Mask" />
+	<lang id="ui_mac_address" 			string="MAC Address" />
+	<lang id="ui_dhcp_server" 			string="DHCP Server" />
+	<lang id="ui_disable" 				string="Disable" />
+	<lang id="ui_enable" 				string="Enable" />
+	<lang id="ui_dhcp_ip_pool" 			string="DHCP IP Pool" />
+	<lang id="ui_dhcp_lease_time" 		string="DHCP Lease Time" />
+	<lang id="ui_hour" 					string="hour(s)" />
+	<lang id="ui_note" 					string="Note: After you click Apply, The DHCP settings will be effective after rebooting the uFi device." />
+	
+	<!-- button -->
+	<lang id="btn_apply" 				string="Apply" />
+	<lang id="btn_reset" 				string="Reset" />
+	
+	<!-- tip -->
+	<!--lang id="tip_id" 		string="Test" /-->
+	<lang id="tip_reboot"			string="Do you want to immediately restart your device?" />
+</root>

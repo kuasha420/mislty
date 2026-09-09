@@ -104,9 +104,10 @@ The onboard Broadcom Wi-Fi chip exposes a complete dedicated command group:
 | `AT+WIFI=1` | Set | Turn ON Wi-Fi radio & broadcast AP | `OK` |
 | `AT+WIFI=0` | Set | Turn OFF Wi-Fi radio (Pure USB mode) | `OK` |
 | `AT^WIENABLE?` | Query | Physical Broadcom RF transmitter state | `^WIENABLE:1` (Active broadcast) or `^WIENABLE:0` (Muted during USB PPP) |
-| `AT^SSID?` | Query | Current Wi-Fi SSID | `^SSID: wl_ssid="TypeScript 420"62C` |
-| `AT^SSID="<name>"` | Set | Configure Wi-Fi SSID | `OK` |
+| `AT^SSID?` | Query | Current Wi-Fi SSID | `^SSID: wl_ssid=TypeScript 420` |
+| `AT^SSID="<name>"` | Set | Factory line SSID provisioning (Qualcomm baseband appends 3-char BSSID suffix, e.g. `62C`, and reboots) | `OK` |
 | `AT^WRSSID?` | Query | Read NVRAM-stored SSID | `^WRSSID: wl_ssid=...` |
+| *GoForm Web API* | Set | Set 100% clean SSID without BSSID suffix (`POST /goform/goform_process` `WIFI_BASIC`) | `HTTP 200` |
 | `AT^WFPWD?` | Query | Current WPA2 Pre-Shared Key (Password) | `^WFPWD: wl_wpa_psk_key=1234567890` |
 | `AT^WFPWD="<key>"` | Set | Set WPA2 Pre-Shared Key | `OK` |
 | `AT^WIMODE?` | Query | Wi-Fi operational mode | `^WIMODE:4` (`4`=AP mode, `0`=Client) |

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_wireless_network" 		string="接入用户列表" />
+	<lang id="ui_station" 				string="接入用户" />
+	<lang id="ui_mac_address" 			string="MAC地址" />
+
+	<!-- button -->
+	<!--lang id="btn_id" 	string="Test" /-->
+	
+	<!-- tip -->
+	<!--lang id="tip_id" 		string="Test" /-->
+</root>

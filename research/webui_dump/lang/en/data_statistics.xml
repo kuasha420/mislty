@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_data_statistics" 	string="Data Statistics" />
+	<lang id="ui_speed" 			string="Rate" />
+	<lang id="ui_up" 				string="Upload" />
+	<lang id="ui_download" 			string="Download" />
+	<lang id="ui_connected_time" 	string="Connected Time" />
+	<lang id="ui_downloaded" 		string="Downloaded" />
+	<lang id="ui_uploaded" 			string="Uploaded" />
+	<lang id="ui_total_traffic" 	string="Total Traffic" />
+	<lang id="ui_current" 			string="Current" />
+	<lang id="ui_total" 			string="Total" />
+	<lang id="ui_note" 				string="Data usage is approximate only. For actual usage, please refer to your network operator." />
+
+
+	<!-- button -->
+	<lang id="btn_clear" 			string="Clear" />
+	
+	<!-- tip -->
+	<!--lang id="tip_id" 		string="Test" /-->
+</root>

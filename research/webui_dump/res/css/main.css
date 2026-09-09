@@ -1,0 +1,44 @@
+@charset "utf-8";
+html,body,div,span,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,address,del,img,ins,q,
+em,strong,dfn,code,samp,kbd,var,cite,
+small,sub,sup,b,i,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td
+{margin:0;padding:0;border:0;font-size:100%;font:inherit;vertical-align:baseline;}
+body                        {line-height:1;_behavior:url(res/htc/csshover3.htc);/*ie6 hack*/}
+ol,ul                       {list-style:none;}
+table                       {border-collapse:collapse;border-spacing:0;}
+
+input,label,select          {vertical-align:middle;font-size:12px;}
+textarea,select             {overflow:auto;border:1px solid #ccc;}
+input.checkbox,input.radio    {border:0;height:13px;width:13px;margin:2px;outline:0;}
+label                       {cursor:pointer;}
+
+body        {font:12px/18px Tahoma,Helvetica,Arial,sans-serif;background:#fff;color:#333;}
+a           {text-decoration:none;color:#0093DD;}
+a:hover     {text-decoration:underline;color:#000;}
+a.active    {font-weight:700;}
+
+.wrap 		{margin:0 auto;width:760px;height:auto;background:#fff;}
+
+table       {width:100%;border:0;border-collapse:collapse;border-spacing:0;background:#fff;text-align:left;}
+th,td       {padding:3px;height:18px;line-height:18px;}
+th          {background:#fff;font-weight:700;}
+table.list th, table.list td {border:1px #ccc solid;}
+
+th.title	 {padding-left:8px;height:19px;background:url(../img/title_bg.png);}
+
+input[type=checkbox],input[type=radio] {border:0;margin:2px 4px 2px 0;height:13px;width:13px;}      
+/* input               {height:18px;line-height:18px;} */
+
+.input	{width:156px;padding:2px;}
+.btn	{text-align:center;outline:0;margin:5px;cursor:pointer;border:0;height:28px;padding-bottom:3px;background:url(../img/btn.png) no-repeat;font-size:12px;}
+.btn	{width:96px; background-position:0 0;}
+.l2		{width:116px; background-position:0 -56px;}
+
+.btn:hover {background-position:0 -28px;}
+.l2:hover {width:116px; background-position:0 -84px;}
+
+div.droplist 			{vertical-align:top;display:inline-block;*display:inline;*zoom:1;border:1px #ccc solid;position:relative;cursor:pointer;width:160px;height:22px;font-weight:normal;}
+div.droplist p 		{height:22px;line-height:22px;padding:0 5px;background:#fff url(../img/arrdown.gif) no-repeat center right;}
+div.droplist ul 		{position:absolute;top:22px;left:-1px;display:none;width:100%;border:solid 1px #ccc;background:#fff;z-index:2;}
+div.droplist ul li		{height:22px;line-height:22px;padding:1px 5px;background:#fff;color:#333;}
+div.droplist ul li:hover, div.droplist ul li.active {background:#eee;}

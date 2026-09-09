@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_wifi_profiles" 		string="Wi-Fi基本设置" />
+	<lang id="ui_network_mode" 			string="网络模式" />
+	<lang id="ui_11b_only" 				string="仅11b" />
+	<lang id="ui_11g_only" 				string="仅11g" />
+	<lang id="ui_n_only" 				string="仅802.11n" />
+	<lang id="ui_bg_mixed" 				string="11b/g混合模式" />
+	<lang id="ui_bgn_mixed" 			string="802.11 b/g/n" />
+	<lang id="ui_network_name" 			string="网络名称(SSID)" />
+	<lang id="ui_ssid_broadcast" 		string="网络广播" />
+	<lang id="ui_enable" 				string="启用" />
+	<lang id="ui_disable" 				string="禁用" />
+	<lang id="ui_ap_isolation" 			string="AP独立" />
+	<lang id="ui_enable1" 				string="启用" />
+	<lang id="ui_disable1" 				string="禁用" />
+	<lang id="ui_country" 				string="国家" />
+	<lang id="ui_none" 					string="无" />
+	<lang id="ui_frequency_channel" 	string="信道" />
+	<lang id="ui_auto"	 				string="自动" />
+	<lang id="ui_rate"					string="速率" />
+	<lang id="ui_distance_setting" 		string="距离设置" />
+	<lang id="ui_long_distance" 		string="远距离" />
+	<lang id="ui_middle_distance" 		string="中距离" />
+	<lang id="ui_short_distance" 		string="短距离" />
+	<lang id="ui_max_sataion_number" 	string="最大接入数" />
+	<lang id="ui_note" 					string="注意: 在提交设置后，需要重新启动uFi设备，修改后的设置才会生效！" />
+
+	<!-- button -->
+	<lang id="btn_apply" 				string="应用" />
+	<lang id="btn_reset" 				string="重置" />
+	
+	<!-- tip -->
+	<lang id="tip_auto" 				string="自动" />
+	<lang id="tip_reboot"				string="您需要立即重启设备吗？" />
+</root>

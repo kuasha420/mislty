@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_connection_mode" 	string="Connection Mode" />
+	<lang id="ui_automatic_dialup" 	string="Automatic Dial-up" />
+	<lang id="ui_manual_dialup" 	string="Manual Dial-up" />
+	
+	<!-- button -->
+	<lang id="btn_apply" 			string="Apply" />
+	<lang id="btn_reset" 			string="Reset" />
+	
+	<!-- tip -->
+	<!--lang id="tip_id" 		string="Test" /-->
+</root>

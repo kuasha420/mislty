@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_login_title" 	string="管理账号登陆" />
+	<lang id="ui_username" 		string="帐号" />
+	<lang id="ui_password" 		string="密码" />
+	<lang id="ui_language" 		string="语言" />
+	<lang id="ui_copyright" 	string="&amp;copy; 2014 高通" />
+	
+	<!-- button -->
+	<lang id="btn_login" 		string="登录" />
+	<lang id="btn_cancel" 		string="取消" />
+	
+	<!-- tip -->
+	<lang id="tip_login_error" string="帐号或密码错误!" />
+</root>

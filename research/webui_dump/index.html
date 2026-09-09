@@ -1,0 +1,27 @@
+<script>
+    var wn = window.navigator, l = (wn.systemLanguage || wn.language).toLowerCase();
+    var lang = 'en'; //default language
+    
+    if (l.indexOf('cn') > -1) {
+		lang = 'cn';
+    } else if (l.indexOf('tw') > -1) {
+		lang = 'tw';
+    }
+    
+    var $ = {
+		get:function(url,fn) {
+			var http = window.ActiveXObject ? new ActiveXObject('Microsoft.XMLHTTP') : new XMLHttpRequest();
+			http.open('GET', url ,false);
+			http.onreadystatechange = function() {
+				if(http.readyState == 4 && http.status == 200){
+					fn(http.responseText);
+				}
+			};
+			http.send(null);
+		}
+	}
+
+    $.get('/goform/goform_process?goformId=SET_LANGUAGE&language='+lang,function(r){
+		top.location.href ='login.asp';
+	});
+</script>

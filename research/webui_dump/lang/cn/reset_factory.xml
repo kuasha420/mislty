@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_reset_factory" 	string="恢复出厂设置" />
+
+	<!-- button -->
+	<lang id="btn_reset_factory" 	string="恢复出厂设置" />
+	
+	<!-- tip -->
+	<lang id="tip_note" 			string="你已经成功注销，设备即将重启。 &lt;br&gt;设备将自动重新建立连接， 请稍后...&lt;br&gt;如果连接失败，通常情况是由于您的设备连接上了另一个不同的网络。" />
+</root>

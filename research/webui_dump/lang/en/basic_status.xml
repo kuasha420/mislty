@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_basic_status" 			string="Basic Status" />
+	<lang id="ui_3g_information" 		string="3G Information" />
+	<lang id="ui_network_provider" 		string="Network Provider:" />
+	<lang id="ui_roam" 					string="Roam:" />
+	<lang id="ui_network_type" 			string="Network Type:" />
+	<lang id="ui_domain" 				string="Domain:" />
+	<lang id="ui_rssi" 					string="RSSI:" />
+	<lang id="ui_evdo_rssi" 			string="EVDO RSSI:" />
+	<lang id="ui_ec_io" 				string="Ec/Io:" />
+	<lang id="ui_cell_id" 				string="Cell ID:" />
+	<lang id="ui_system_information"	string="System Information" />
+	<lang id="ui_imei"					string="IMEI:" />
+	<lang id="ui_firmware_version"		string="Firmware version:" />
+	<lang id="ui_software_version"		string="Software version:" />
+	<lang id="ui_hardware_version"		string="Hardware version:" />
+	
+	<!-- button -->
+	<!--lang id="btn_id" 	string="Test" /-->
+	
+	<!-- tip -->
+	<lang id="tip_on" 					string="On" />
+	<lang id="tip_off" 					string="Off" />
+	<lang id="tip_on" 					string="Unknown" />
+	<lang id="tip_limited_service"		string="Limited Service" />
+	<lang id="tip_no_service"			string="No Service" />
+</root>

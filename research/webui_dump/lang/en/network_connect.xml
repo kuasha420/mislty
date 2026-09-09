@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_current_flux" 		string="Current Flux:" />
+	<lang id="ui_total_flux" 		string="Total Flux:" />
+	<lang id="ui_connected_time" 	string="Connected Time:" />
+	<lang id="ui_wireless_network" 	string="Wireless Network" />
+	<lang id="ui_station" 			string="Station" />
+	<lang id="ui_mac_address" 		string="MAC Address" />
+
+	<!-- button -->
+	<lang id="btn_refresh" 			string="Refresh" />
+	
+	<!-- tip -->
+	<lang id="tip_connect" 			string="Connect" />
+	<lang id="tip_disconnect" 		string="Disconnect" />
+	<lang id="tip_bytes"			string="Bytes" />
+</root>

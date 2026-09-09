@@ -16,10 +16,10 @@ In 2026, one such forgotten device was pulled from storage for a weekend deep-di
 - **Board Code**: Aleka Incorporated, Project `MDM9600 UV310` (HW Rev `UV310-U-5.1 CGWL`).
 - **The "Siemens SG75" Mystery**: A historical entry in `/usr/share/hwdata/usb.ids` for PID `05c6:6000` which Qualcomm reused as a reference modem ID.
 - **Recovered Wi-Fi Credentials & The Feline Origin**: The forgotten WPA2 password (`misty-6969`) was recovered directly from baseband NVRAM via `AT^WFPWD?`. In 2018, the founder adopted their first cat, **Misty**—sparking a feline fascination that eventually gave birth to **Purrfect Software Limited (PSL)**, where Misty now reigns as the *Keeper of Wisdom* across the Purrfect Universe. That password was the very last credential configured on this dongle before it was consigned to a drawer of obsolete tech when its owner made the leap to Linux.
-- **The Two Operational Modes Discovery**: Ground-truth hardware register probing (`AT^WIENABLE?`) and OEM Windows software reverse-engineering (`[DlgSetMode]`) proved that the hardware operates in **two mutually exclusive modes**: standalone **Pocket Router Mode** (autonomous Wi-Fi AP) and direct **USB Tethered Modem Mode** (direct high-speed `ppp0` link for the host PC). The internal Broadcom Wi-Fi radio is suspended during active USB PPP sessions to respect the 500mA USB 2.0 power ceiling and single-PDN baseband routing.
+- **The Operational Reality & Single-PDN Multiplexing**: Extensive live silicon testing disproved the historical 500mA electrical power-down myth—both radios remain fully powered and transmit RF frames simultaneously. The true hardware ceiling is **Qualcomm AMSS Single-PDN packet multiplexing**: during active USB PPP sessions, AMSS dedicates cellular data routing exclusively to the USB host. Meanwhile, the Broadcom Wi-Fi radio stays alive indefinitely, hosting a local WLAN (`192.168.100.0/24`) and embedded web server (`QC-Webs`). This enables 4 major unlocked features: out-of-band "Shadow Telemetry", local client discovery, host reverse-tethering relay, and sub-4-second smart mode switching.
 - **The Name `MisLTy`**: 
   - `Misty`: The beloved feline Keeper of Wisdom whose name cracked open the radio NVRAM.
-  - `LTE`: The high-speed 4G data backbone running at full signal.
+  - `LTE`: The high-speed 4G data backbone running at full signal (-51 dBm).
   - `Missed`: The missed call, the missed fallback, the missed connection (`+CEER: No service`). The tragic voice subsystem reverse-engineered down to its 8000 Hz 16-bit PCM audio pipelines and telephony AT state machines, only to be rejected in 2026 by modern carrier MMEs because 3G was switched off and 4G data sticks lack VoLTE provisioning. So close, yet so far `</3`.
 
 ---
@@ -31,11 +31,13 @@ ufi-modem/
 ├── README.md                           # Project overview, lore, and quickstart
 ├── docs/
 │   ├── PRD.md                          # Product Requirement Document (v1.0 Desktop & Toolkit)
+│   ├── TECHNICAL_DESIGN.md             # System architecture, D-Bus RPC, process topology & roadmap
+│   ├── OPERATIONAL_MODES.md            # Empirical benchmarks & Single-PDN dual-plane networking
+│   ├── QC_WEBS_API_SPEC.md             # Reverse-engineered GoForm & JSON telemetry API specs
 │   ├── HARDWARE_SPEC.md                # Complete board architecture, pinout & RF specs
 │   ├── SOFTWARE_SPEC.md                # USB enumeration, PPP data plane & Wi-Fi control
 │   ├── AT_COMMAND_REFERENCE.md         # Comprehensive dictionary of ~150 AT commands
 │   ├── LINUX_COMPATIBILITY_GUIDE.md    # Analysis of the 2015 failure & ModemManager crash
-│   ├── OPERATIONAL_MODES.md            # Architecture: Pocket Router vs. USB Tethered Modem
 │   ├── VOICE_CALL_ANALYSIS.md          # Audio PCM architecture & LTE carrier CSFB analysis
 │   ├── SD_CARD_SPEC.md                 # 32GB SDHC storage & offline self-install deployment
 │   └── ZEROCD_ANALYSIS.md              # Reverse-engineered Windows ISO & installer assets
@@ -110,15 +112,18 @@ ufi-modem at "AT^SSID?"
 
 ## 🗺️ Project Roadmap
 
-- [x] **Phase 1: Reverse-Engineering & Documentation**
+- [x] **Phase 1: Reverse-Engineering & Architecture Specifications**
   - Trace USB descriptors and ZeroCD switching.
-  - Map serial ports and endpoints.
-  - Document complete AT command set.
-  - Verify operational modes (Pocket Router vs. USB Modem) and mutual exclusion behavior.
+  - Map serial ports, PCM audio endpoints, and QCDM diagnostics.
+  - Document complete AT command set (~150 commands).
+  - Empirically benchmark USB PPP vs. Pocket Router Wi-Fi performance.
+  - Reverse-engineer `QC-Webs` embedded GoForm web server & real-time JSON telemetry stream.
+  - Author comprehensive PRD (`PRD.md`) and Technical Design Document (`TECHNICAL_DESIGN.md`).
 - [x] **Phase 2: Core Tooling & Permissions**
-  - Standalone `ufi-modem` Python CLI.
-  - udev rules and cellular-optimized PPP scripts.
-  - SMS listing, reading, and sending.
+  - Standalone `ufi-modem` Python CLI with clean Web API integration.
+  - Hardened udev rules (`99-ufi-permissions.rules`) with `ID_MM_DEVICE_IGNORE` and symlinks.
+  - Cellular-optimized PPP dialer with non-destructive split routing.
+  - SMS listing, reading, and sending OTA.
 - [ ] **Phase 3: Modern Desktop GUI (KDE Plasma / Kirigami / Qt6)**
   - Native KDE Plasma / Qt6 application.
   - Real-time animated signal bars and carrier display.

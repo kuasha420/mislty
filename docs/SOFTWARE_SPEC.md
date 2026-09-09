@@ -118,8 +118,8 @@ As verified empirically on live hardware and confirmed by OEM Windows binaries (
 4. Full architectural details and state machines are documented in [OPERATIONAL_MODES.md](file:///home/psl/Projects/ufi-modem/docs/OPERATIONAL_MODES.md).
 
 #### 4.3 Wi-Fi Credential Management
-- **Query SSID**: `AT^SSID?` -> returns `^SSID: wl_ssid=<SSID>`
-- **Set SSID**: `AT^SSID="<SSID>"` (Note: Broadcom firmware automatically appends the last 3 hex characters of the MAC address, e.g. `62C`).
+- **Set SSID (Serial AT)**: `AT^SSID="<SSID>"` (Factory provisioning mode: Qualcomm AMSS AT command automatically appends the last 3 hex characters of the BSSID, e.g. `62C`, and reboots).
+- **Set Clean SSID (GoForm Web API)**: `POST /goform/goform_process` with `goformId=WIFI_BASIC&ssid=<SSID>` writes directly to NVRAM without any MAC suffix.
 - **Query WPA2 Key**: `AT^WFPWD?` -> returns `^WFPWD: wl_wpa_psk_key=<PASSWORD>`
 - **Set WPA2 Key**: `AT^WFPWD="<PASSWORD>"`
 - **Save to NVRAM**: `AT+WRWIFI`

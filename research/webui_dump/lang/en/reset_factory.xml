@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<!-- ui -->
+	<lang id="ui_reset_factory" 	string="Reset to Default Factory Settings" />
+
+	<!-- button -->
+	<lang id="btn_reset_factory" 	string="Reset Factory" />
+	
+	<!-- tip -->
+	<lang id="tip_note" 			string="You have been logged out. The Device will now restart. &lt;br&gt;Please wait, connection will automatically be re-established if possible. &lt;br&gt;If this fails, it is usually because your Wi-Fi has connected to a different network. " />
+</root>

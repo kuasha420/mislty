@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html> 
+<head> 
+    <meta charset="utf-8"> 
+    <title>4G Router</title>
+    <link rel="stylesheet" href="res/css/main.css">
+    <style>
+        h3 {font-weight:700;line-height:40px;}
+        p {line-height:24px;padding:6px 20px;}
+    </style>
+</head> 
+<body> 
+<div class="wrap">
+	<table>
+	<tr><td>
+	<h3>Home  ->  Network Connect</h3>
+<p>1.	Data flux and connected time will be displayed on the left frame. </p>
+<p style="padding:6px 36px;">“Connect” button is used for 3G connection manually. When 3G network is connected, this button will switch to “Disconnect”. If the menu “3G->connection mode” is set as “Automatic dial-up”, and the user disconnects 3G connection manually by click “Disconnect” button, then the uFi device will connect 3G network automatically.</p>
+<p style="padding:6px 36px;">“Refresh” button is used to refresh the display of data flux and connected time. </p>
+<p>2.	“Wireless Network” displays the number of stations and MAC addresses.</p>
+<h3>Home  ->  Reset Factory</h3>
+<p>“Reset Factory” button is used to restore all the factory settings and restart the uFi device.</p>
+<h3>Home  ->  DHCP Settings</h3>
+<p>“IP address” is used to set the IP address of uFi device. This IP address is also the website of the administration page. The default value of IP address is “192.168.100.1”.</p>
+<p>The default value of “Subnet Mask” is “255.255.255.0”.</p>
+<p>“DHCP IP Pool” is used to set the IP address range which is allocated dynamically to each terminal connected to Wi-Fi network. The default IP address range is from “192.168.100.100” to “192.168.100.200”.</p>
+<p>Note: The DHCP settings will be effective after rebooting the uFi device.</p>
+<h3>Home  ->  Update Password</h3>
+<p>This menu is used to modify the login password of administration page. The default login account and password both are “admin”.</p>
+<h3>3G  ->  Connection Mode</h3>
+<p>This menu is used to set connection mode to 3G network.</p>
+<p>For “Manual Dial-up” mode, connecting and disconnecting to 3G network can be operated on “Home->Network Connect” menu.</p>
+<h3>3G  ->  Network Selection</h3>
+<p>This menu is used to set the priority of networks. The default value is “Automatic”.</p>
+<h3>3G  ->  APN Settings</h3>
+<p>This menu is used to set 3G network access parameters, including network provider, “Dial Number”, “Username”, “Password”, “APN”. If users don’t know how to set these parameters, please confirm with your local network provider.</p>
+<h3>Wi-Fi  ->  Profiles</h3>
+<p>This menu is used to set Wi-Fi “Network Mode”, “Network Name (SSID)”, “SSID Broadcast”, “Frequency (Channel)”, “Max Station Number”.</p>
+<p>Users can define Wi-Fi network name (SSID) for easy memory and recognition.
+<p>If the “SSID Broadcast” is set as “Disable”, then when terminals search for Wi-Fi networks, this SSID will not show on the list of Wi-Fi networks, and the user need to add this SSID manually.</p>
+<p>Note: The profiles settings will be effective after rebooting the uFi device.</p>
+<h3>Wi-Fi  ->  Security</h3>
+<p>This menu is used to set password of Wi-Fi network.</p>
+<p>Note: The security settings will be effective after rebooting the uFi device.</p>
+<h3>Wi-Fi  ->  Standby</h3>
+<p>This menu is used to enable or disable sleep mode of Wi-Fi module.</p>
+<p>If the sleep mode is enabled, then the user needs to set “Sleep Time”, that is, if the Wi-Fi network has no any connections from terminals during the “Sleep Time”, then the Wi-Fi module of uFi will sleep.</p>
+<h3>Wi-Fi  ->  Station List</h3>
+<p>This menu is used to display the number of stations and MAC addresses.</p>
+<h3>Status  ->  Data Statistics</h3>
+<p>This menu is used to display the upload and download rate of data link, data flux and connected time.</p>
+<h3>Status  ->  Basic Status</h3>
+<p>This menu is used to display the current network provider, network type, software and hardware version, IMEI, etc.</p>
+<h3>Status  ->  Network Status</h3>
+<p>This menu is used to display the information about connection status of WAN/WLAN/LAN, and IP addresses, etc.</p>
+	</td></tr>
+	</table>
+</div>
+<script src="res/js/jquery.js"></script>
+<script>
+$(function() {
+	parent.setHeight();
+});
+</script>
+</body>
+</html>
