@@ -82,6 +82,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_ports.add_argument("--json", action="store_true", help="Output ports mapping in structured JSON")
     p_ports.add_argument("--no-udev", action="store_true", help="Bypass udev and crawl sysfs directly")
 
+    # gui
+    subparsers.add_parser("gui", help="Launch MisLTy Desktop GUI Application")
+
     return parser
 
 
@@ -102,6 +105,10 @@ def main(args=None):
         else:
             print(ports)
         sys.exit(0 if ports.is_ready else 1)
+
+    if parsed.subcommand == "gui":
+        from mislty.gui.app import main as gui_main
+        sys.exit(gui_main())
 
     import json
     from mislty.ipc.client import MisltyClient

@@ -1,0 +1,639 @@
+"""
+mislty.gui.app
+~~~~~~~~~~~~~~
+
+PySide6 / QML Application Host and MisltyBridge for the MisLTy Desktop Suite.
+Connects QML UI decks to MisltyClient IPC and hardware subsystems with
+reactive property bindings, background telemetry polling, and smooth feline UI tokens.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+from pathlib import Path
+import sys
+import threading
+import time
+from typing import Any, Dict, List, Optional
+
+from PySide6.QtCore import (
+    Property,
+    QObject,
+    QTimer,
+    QUrl,
+    Signal,
+    Slot,
+)
+from PySide6.QtGui import QGuiApplication, QIcon
+from PySide6.QtQml import QQmlApplicationEngine
+
+from mislty.ipc.client import MisltyClient
+
+logger = logging.getLogger("mislty.gui")
+
+
+class MisltyBridge(QObject):
+    """
+    QObject Bridge communicating between QML UI layers and the MisLTy
+    daemon / client IPC backend.
+    """
+
+    # Property Change Notification Signals
+    connectedChanged = Signal(bool)
+    connectingChanged = Signal(bool)
+    operatorChanged = Signal(str)
+    technologyChanged = Signal(str)
+    signalBarsChanged = Signal(int)
+    signalCsqChanged = Signal(int)
+    signalDbmChanged = Signal(int)
+    wifiPowerChanged = Signal(bool)
+    wifiSsidChanged = Signal(str)
+    wifiClientsCountChanged = Signal(int)
+    rxBytesChanged = Signal(int)
+    txBytesChanged = Signal(int)
+    rxRateChanged = Signal(float)
+    txRateChanged = Signal(float)
+    ipAddressChanged = Signal(str)
+    sessionDurationChanged = Signal(int)
+    activeDeckChanged = Signal(int)
+    isDaemonRunningChanged = Signal(bool)
+    transportModeChanged = Signal(str)
+    statusMessageChanged = Signal(str)
+    smsThreadsChanged = Signal(list)
+    smsMessagesChanged = Signal(list)
+
+    def __init__(self, client: Optional[MisltyClient] = None, parent: Optional[QObject] = None) -> None:
+        super().__init__(parent)
+        self._client: MisltyClient = client if client is not None else MisltyClient()
+        self._poll_timer: Optional[QTimer] = None
+        self._poll_lock = threading.Lock()
+
+        # Telemetry State Properties
+        self._connected: bool = False
+        self._connecting: bool = False
+        self._operator: str = "Searching..."
+        self._technology: str = "4G LTE"
+        self._signal_bars: int = 0
+        self._signal_csq: int = 0
+        self._signal_dbm: int = -113
+        self._wifi_power: bool = False
+        self._wifi_ssid: str = ""
+        self._wifi_clients_count: int = 0
+        self._rx_bytes: int = 0
+        self._tx_bytes: int = 0
+        self._rx_rate: float = 0.0
+        self._tx_rate: float = 0.0
+        self._ip_address: str = ""
+        self._session_duration: int = 0
+        self._active_deck: int = 0
+        self._is_daemon_running: bool = False
+        self._transport_mode: str = self._client.active_transport
+        self._status_message: str = "Ready"
+        self._sms_threads: List[Dict[str, Any]] = []
+        self._sms_messages: List[Dict[str, Any]] = []
+
+        # Internal Rate Tracking State
+        self._last_poll_time: float = 0.0
+        self._last_rx_bytes: int = 0
+        self._last_tx_bytes: int = 0
+        self._connected_start_time: float = 0.0
+
+        # Perform initial synchronous status check
+        try:
+            self._update_status_data(self._client.get_status())
+        except Exception as exc:
+            logger.debug("Initial status probe failed: %s", exc)
+
+    # -----------------------------------------------------------------------
+    # QML Properties
+    # -----------------------------------------------------------------------
+
+    @Property(bool, notify=connectedChanged)
+    def connected(self) -> bool:
+        return self._connected
+
+    @connected.setter
+    def connected(self, value: bool) -> None:
+        if self._connected != value:
+            self._connected = value
+            self.connectedChanged.emit(value)
+
+    @Property(bool, notify=connectingChanged)
+    def connecting(self) -> bool:
+        return self._connecting
+
+    @connecting.setter
+    def connecting(self, value: bool) -> None:
+        if self._connecting != value:
+            self._connecting = value
+            self.connectingChanged.emit(value)
+
+    @Property(str, notify=operatorChanged)
+    def operator(self) -> str:
+        return self._operator
+
+    @operator.setter
+    def operator(self, value: str) -> None:
+        if self._operator != value:
+            self._operator = value
+            self.operatorChanged.emit(value)
+
+    @Property(str, notify=technologyChanged)
+    def technology(self) -> str:
+        return self._technology
+
+    @technology.setter
+    def technology(self, value: str) -> None:
+        if self._technology != value:
+            self._technology = value
+            self.technologyChanged.emit(value)
+
+    @Property(int, notify=signalBarsChanged)
+    def signalBars(self) -> int:
+        return self._signal_bars
+
+    @signalBars.setter
+    def signalBars(self, value: int) -> None:
+        if self._signal_bars != value:
+            self._signal_bars = value
+            self.signalBarsChanged.emit(value)
+
+    @Property(int, notify=signalCsqChanged)
+    def signalCsq(self) -> int:
+        return self._signal_csq
+
+    @signalCsq.setter
+    def signalCsq(self, value: int) -> None:
+        if self._signal_csq != value:
+            self._signal_csq = value
+            self.signalCsqChanged.emit(value)
+
+    @Property(int, notify=signalDbmChanged)
+    def signalDbm(self) -> int:
+        return self._signal_dbm
+
+    @signalDbm.setter
+    def signalDbm(self, value: int) -> None:
+        if self._signal_dbm != value:
+            self._signal_dbm = value
+            self.signalDbmChanged.emit(value)
+
+    @Property(bool, notify=wifiPowerChanged)
+    def wifiPower(self) -> bool:
+        return self._wifi_power
+
+    @wifiPower.setter
+    def wifiPower(self, value: bool) -> None:
+        if self._wifi_power != value:
+            self._wifi_power = value
+            self.wifiPowerChanged.emit(value)
+
+    @Property(str, notify=wifiSsidChanged)
+    def wifiSsid(self) -> str:
+        return self._wifi_ssid
+
+    @wifiSsid.setter
+    def wifiSsid(self, value: str) -> None:
+        if self._wifi_ssid != value:
+            self._wifi_ssid = value
+            self.wifiSsidChanged.emit(value)
+
+    @Property(int, notify=wifiClientsCountChanged)
+    def wifiClientsCount(self) -> int:
+        return self._wifi_clients_count
+
+    @wifiClientsCount.setter
+    def wifiClientsCount(self, value: int) -> None:
+        if self._wifi_clients_count != value:
+            self._wifi_clients_count = value
+            self.wifiClientsCountChanged.emit(value)
+
+    @Property(int, notify=rxBytesChanged)
+    def rxBytes(self) -> int:
+        return self._rx_bytes
+
+    @rxBytes.setter
+    def rxBytes(self, value: int) -> None:
+        if self._rx_bytes != value:
+            self._rx_bytes = value
+            self.rxBytesChanged.emit(value)
+
+    @Property(int, notify=txBytesChanged)
+    def txBytes(self) -> int:
+        return self._tx_bytes
+
+    @txBytes.setter
+    def txBytes(self, value: int) -> None:
+        if self._tx_bytes != value:
+            self._tx_bytes = value
+            self.txBytesChanged.emit(value)
+
+    @Property(float, notify=rxRateChanged)
+    def rxRate(self) -> float:
+        return self._rx_rate
+
+    @rxRate.setter
+    def rxRate(self, value: float) -> None:
+        if self._rx_rate != value:
+            self._rx_rate = value
+            self.rxRateChanged.emit(value)
+
+    @Property(float, notify=txRateChanged)
+    def txRate(self) -> float:
+        return self._tx_rate
+
+    @txRate.setter
+    def txRate(self, value: float) -> None:
+        if self._tx_rate != value:
+            self._tx_rate = value
+            self.txRateChanged.emit(value)
+
+    @Property(str, notify=ipAddressChanged)
+    def ipAddress(self) -> str:
+        return self._ip_address
+
+    @ipAddress.setter
+    def ipAddress(self, value: str) -> None:
+        if self._ip_address != value:
+            self._ip_address = value
+            self.ipAddressChanged.emit(value)
+
+    @Property(int, notify=sessionDurationChanged)
+    def sessionDuration(self) -> int:
+        return self._session_duration
+
+    @sessionDuration.setter
+    def sessionDuration(self, value: int) -> None:
+        if self._session_duration != value:
+            self._session_duration = value
+            self.sessionDurationChanged.emit(value)
+
+    @Property(int, notify=activeDeckChanged)
+    def activeDeck(self) -> int:
+        return self._active_deck
+
+    @activeDeck.setter
+    def activeDeck(self, value: int) -> None:
+        if self._active_deck != value:
+            self._active_deck = value
+            self.activeDeckChanged.emit(value)
+
+    @Property(bool, notify=isDaemonRunningChanged)
+    def isDaemonRunning(self) -> bool:
+        return self._is_daemon_running
+
+    @isDaemonRunning.setter
+    def isDaemonRunning(self, value: bool) -> None:
+        if self._is_daemon_running != value:
+            self._is_daemon_running = value
+            self.isDaemonRunningChanged.emit(value)
+
+    @Property(str, notify=transportModeChanged)
+    def transportMode(self) -> str:
+        return self._transport_mode
+
+    @transportMode.setter
+    def transportMode(self, value: str) -> None:
+        if self._transport_mode != value:
+            self._transport_mode = value
+            self.transportModeChanged.emit(value)
+
+    @Property(str, notify=statusMessageChanged)
+    def statusMessage(self) -> str:
+        return self._status_message
+
+    @statusMessage.setter
+    def statusMessage(self, value: str) -> None:
+        if self._status_message != value:
+            self._status_message = value
+            self.statusMessageChanged.emit(value)
+
+    @Property(list, notify=smsThreadsChanged)
+    def smsThreads(self) -> list:
+        return self._sms_threads
+
+    @smsThreads.setter
+    def smsThreads(self, value: list) -> None:
+        if self._sms_threads != value:
+            self._sms_threads = value
+            self.smsThreadsChanged.emit(value)
+
+    @Property(list, notify=smsMessagesChanged)
+    def smsMessages(self) -> list:
+        return self._sms_messages
+
+    @smsMessages.setter
+    def smsMessages(self, value: list) -> None:
+        if self._sms_messages != value:
+            self._sms_messages = value
+            self.smsMessagesChanged.emit(value)
+
+    # -----------------------------------------------------------------------
+    # Status Ingestion & Telemetry Processing
+    # -----------------------------------------------------------------------
+
+    def _update_status_data(self, stat: Dict[str, Any]) -> None:
+        """Parse status dictionary and update reactive properties."""
+        daemon = stat.get("daemon", {})
+        cellular = stat.get("cellular_ppp", {})
+        wifi = stat.get("wifi", {})
+
+        is_connected = bool(cellular.get("is_connected", False))
+        self.connected = is_connected
+        self.isDaemonRunning = bool(daemon.get("is_running", False))
+        self.transportMode = self._client.active_transport
+
+        # Cellular details
+        ip = cellular.get("ip_address") or ""
+        self.ipAddress = ip
+
+        # Carrier & RF Signal
+        csq = daemon.get("rssi") or 0
+        dbm = daemon.get("dbm") or (-113 + (csq * 2) if csq > 0 and csq != 99 else -113)
+        bars = daemon.get("bars") or 0
+        carrier = daemon.get("carrier") or ("Active Network" if is_connected else "Searching Carrier...")
+        tech = daemon.get("technology") or "4G LTE"
+
+        self.signalCsq = csq
+        self.signalDbm = dbm
+        self.signalBars = bars
+        self.operator = carrier
+        self.technology = tech
+
+        # Wi-Fi details
+        self.wifiPower = bool(wifi.get("power", False))
+        self.wifiSsid = wifi.get("ssid") or ""
+        self.wifiClientsCount = wifi.get("clients_count") or 0
+
+        # Throughput & Traffic Rates
+        now = time.time()
+        rx = cellular.get("rx_bytes") or 0
+        tx = cellular.get("tx_bytes") or 0
+
+        if self._last_poll_time > 0 and is_connected:
+            dt = now - self._last_poll_time
+            if dt > 0:
+                delta_rx = max(0, rx - self._last_rx_bytes)
+                delta_tx = max(0, tx - self._last_tx_bytes)
+                self.rxRate = delta_rx / dt
+                self.txRate = delta_tx / dt
+        else:
+            self.rxRate = 0.0
+            self.txRate = 0.0
+
+        self._last_poll_time = now
+        self._last_rx_bytes = rx
+        self._last_tx_bytes = tx
+        self.rxBytes = rx
+        self.txBytes = tx
+
+        # Session Uptime Duration
+        if is_connected:
+            if self._connected_start_time == 0.0:
+                self._connected_start_time = now
+            self.sessionDuration = int(now - self._connected_start_time)
+        else:
+            self._connected_start_time = 0.0
+            self.sessionDuration = 0
+
+    # -----------------------------------------------------------------------
+    # Public Invokable Slots
+    # -----------------------------------------------------------------------
+
+    @Slot(int)
+    def setActiveDeck(self, deck: int) -> None:
+        """Switch active UI deck."""
+        self.activeDeck = deck
+
+    @Slot()
+    def refreshStatus(self) -> None:
+        """Trigger asynchronous status refresh."""
+        def _worker():
+            if not self._poll_lock.acquire(blocking=False):
+                return
+            try:
+                stat = self._client.get_status()
+                self._update_status_data(stat)
+            except Exception as exc:
+                logger.debug("Status poll failed: %s", exc)
+            finally:
+                self._poll_lock.release()
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    @Slot(str, result=bool)
+    @Slot(result=bool)
+    def connectData(self, apn: str = "internet") -> bool:
+        """Initiate cellular data connection in background worker thread."""
+        self.connecting = True
+        self.statusMessage = f"Connecting cellular data via APN '{apn}'..."
+
+        def _worker():
+            try:
+                res = self._client.connect(apn=apn, default_route=True, timeout=20.0)
+                success = res.get("success", False)
+                self.statusMessage = "Connected successfully." if success else "Connection failed."
+            except Exception as exc:
+                logger.error("Data connection failed: %s", exc)
+                self.statusMessage = f"Connection error: {exc}"
+            finally:
+                self.connecting = False
+                try:
+                    self._update_status_data(self._client.get_status())
+                except Exception:
+                    pass
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return True
+
+    @Slot(result=bool)
+    def disconnectData(self) -> bool:
+        """Terminate cellular data connection."""
+        self.connecting = True
+        self.statusMessage = "Disconnecting cellular session..."
+
+        def _worker():
+            try:
+                self._client.disconnect()
+                self.statusMessage = "Disconnected."
+            except Exception as exc:
+                logger.error("Data disconnect failed: %s", exc)
+                self.statusMessage = f"Disconnect error: {exc}"
+            finally:
+                self.connecting = False
+                try:
+                    self._update_status_data(self._client.get_status())
+                except Exception:
+                    pass
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return True
+
+    @Slot(result=bool)
+    def toggleWifi(self) -> bool:
+        """Toggle Broadcom Wi-Fi radio power."""
+        new_power = not self._wifi_power
+        self.setWifiPower(new_power)
+        return new_power
+
+    @Slot(bool, result=bool)
+    def setWifiPower(self, enable: bool) -> bool:
+        """Set Broadcom Wi-Fi radio power state."""
+        def _worker():
+            try:
+                res = self._client.set_wifi_power(enable)
+                if res.get("success"):
+                    self.wifiPower = enable
+            except Exception as exc:
+                logger.error("Failed to set Wi-Fi power: %s", exc)
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return True
+
+    @Slot(str, str, result=bool)
+    def setWifiCredentials(self, ssid: str, password: str) -> bool:
+        """Configure Wi-Fi SSID and WPA2 security passphrase."""
+        def _worker():
+            try:
+                res = self._client.set_wifi_credentials(ssid, password)
+                if res.get("success"):
+                    self.wifiSsid = ssid
+                    self.statusMessage = f"Wi-Fi credentials updated: {ssid}"
+            except Exception as exc:
+                logger.error("Failed to set Wi-Fi credentials: %s", exc)
+                self.statusMessage = f"Wi-Fi config error: {exc}"
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return True
+
+    @Slot(str, result=str)
+    def executeAt(self, command: str) -> str:
+        """Execute raw AT command transaction."""
+        try:
+            res = self._client.execute_at(command, timeout=3.0)
+            lines = res.get("lines", [])
+            output = "\n".join(lines)
+            status = "OK" if res.get("success") else f"ERROR ({res.get('error', '')})"
+            return f"{output}\n{status}".strip()
+        except Exception as exc:
+            return f"ERROR: {exc}"
+
+    @Slot(str, str, result=bool)
+    def sendSms(self, recipient: str, text: str) -> bool:
+        """Send an SMS text message."""
+        try:
+            res = self._client.send_sms(recipient, text)
+            if res.get("success"):
+                self.statusMessage = f"SMS sent to {recipient}."
+                self.getSmsThreads()
+                return True
+            else:
+                self.statusMessage = f"Failed to send SMS: {res.get('error', 'Error')}"
+                return False
+        except Exception as exc:
+            self.statusMessage = f"SMS error: {exc}"
+            return False
+
+    @Slot(result=list)
+    def getSmsThreads(self) -> list:
+        """Fetch indexed SMS conversation threads."""
+        try:
+            threads = self._client.list_sms()
+            self.smsThreads = threads
+            return threads
+        except Exception as exc:
+            logger.debug("Failed to list SMS threads: %s", exc)
+            return []
+
+    @Slot(int, result=list)
+    def getSmsMessages(self, thread_id: int) -> list:
+        """Fetch messages for a specific SMS thread."""
+        try:
+            msgs = self._client.list_sms(thread_id=thread_id)
+            self.smsMessages = msgs
+            return msgs
+        except Exception as exc:
+            logger.debug("Failed to list thread messages: %s", exc)
+            return []
+
+    @Slot(result=list)
+    def syncSms(self) -> list:
+        """Reconcile SMS from SIM card storage into local database."""
+        def _worker():
+            try:
+                ingested = self._client.sync_sms(purge_sim=True)
+                self.statusMessage = f"Synced {len(ingested)} message(s) from SIM."
+                self.getSmsThreads()
+            except Exception as exc:
+                logger.error("SMS sync failed: %s", exc)
+                self.statusMessage = f"SMS sync error: {exc}"
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return []
+
+    # -----------------------------------------------------------------------
+    # Polling Control
+    # -----------------------------------------------------------------------
+
+    def start_polling(self, interval_ms: int = 1500) -> None:
+        """Start periodic background telemetry sampling timer."""
+        if self._poll_timer is None:
+            self._poll_timer = QTimer(self)
+            self._poll_timer.setInterval(interval_ms)
+            self._poll_timer.timeout.connect(self.refreshStatus)
+            self._poll_timer.start()
+
+    def stop_polling(self) -> None:
+        """Stop periodic background telemetry sampling timer."""
+        if self._poll_timer is not None:
+            self._poll_timer.stop()
+            self._poll_timer = None
+
+
+def create_app(
+    client: Optional[MisltyClient] = None,
+    argv: Optional[List[str]] = None,
+) -> tuple[QGuiApplication, QQmlApplicationEngine, MisltyBridge]:
+    """
+    Bootstrap the PySide6 application engine, bridge, and QML view stack.
+    """
+    if argv is None:
+        argv = sys.argv
+
+    # High-DPI scaling configuration and GLib isolation
+    os.environ.setdefault("QT_NO_GLIB", "1")
+    app = QGuiApplication.instance()
+    if app is None:
+        app = QGuiApplication(argv)
+        app.setOrganizationName("Purrfect Software Limited")
+        app.setOrganizationDomain("purrfect.software")
+        app.setApplicationName("MisLTy")
+
+    # Locate QML assets
+    qml_dir = Path(__file__).resolve().parent / "qml"
+    main_qml = qml_dir / "Main.qml"
+
+    engine = QQmlApplicationEngine()
+    engine.addImportPath(str(qml_dir))
+
+    bridge = MisltyBridge(client=client)
+    engine.rootContext().setContextProperty("bridge", bridge)
+
+    engine.load(QUrl.fromLocalFile(str(main_qml)))
+    if not engine.rootObjects():
+        raise RuntimeError("Failed to load QML root object from Main.qml")
+
+    return app, engine, bridge
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """Entry point for MisLTy Desktop GUI."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    app, engine, bridge = create_app(argv=argv)
+    bridge.start_polling(interval_ms=1500)
+    return app.exec()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

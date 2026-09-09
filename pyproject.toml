@@ -51,6 +51,7 @@ test = [
 [project.scripts]
 mislty = "mislty.cli.main:main"
 misltyd = "mislty.core.daemon:main"
+mislty-gui = "mislty.gui.app:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mislty"]

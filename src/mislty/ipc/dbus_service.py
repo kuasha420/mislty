@@ -54,6 +54,7 @@ class DbusService:
         self._is_running = False
         self._ready_event = threading.Event()
         self._lock = threading.Lock()
+        self._bus: Optional[Any] = None
 
     @property
     def is_available(self) -> bool:
@@ -102,6 +103,13 @@ class DbusService:
                 except Exception:
                     pass
                 self._dbus_object = None
+
+            if self._bus and self.bus_name:
+                try:
+                    self._bus.release_name(self.bus_name)
+                except Exception:
+                    pass
+                self._bus = None
 
             if self._loop:
                 try:
@@ -152,7 +160,8 @@ class DbusService:
         try:
             DBusGMainLoop(set_as_default=True)
             bus = dbus.SessionBus()
-            bus_name = dbus.service.BusName(self.bus_name, bus)
+            self._bus = bus
+            bus_name = dbus.service.BusName(self.bus_name, bus, replace_existing=True, allow_replacement=True, do_not_queue=True)
 
             class _ModemObject(dbus.service.Object):
                 def __init__(inner_self, bus, path, dispatcher: IpcDispatcher):
