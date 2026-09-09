@@ -3,8 +3,10 @@ mislty: Command-line interface for the MisLTy Qualcomm MDM9600 Linux Suite.
 """
 
 import sys
+import time
 import argparse
 import mislty
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -44,10 +46,19 @@ def build_parser() -> argparse.ArgumentParser:
     # sms
     p_sms = subparsers.add_parser("sms", help="SMS messaging tools")
     sms_sub = p_sms.add_subparsers(dest="sms_action", help="SMS subcommands")
-    sms_sub.add_parser("list", help="List SMS messages")
+    
+    p_sms_list = sms_sub.add_parser("list", help="List SMS conversation threads or messages")
+    p_sms_list.add_argument("-t", "--thread", type=int, default=None, help="Thread ID to inspect")
+    p_sms_list.add_argument("--json", action="store_true", help="Output in structured JSON format")
+
     p_sms_send = sms_sub.add_parser("send", help="Send SMS message")
     p_sms_send.add_argument("recipient", help="Recipient phone number (e.g. +8801XXXXXXXXX)")
     p_sms_send.add_argument("text", help="Text message content (up to 160 GSM-7 characters)")
+
+    p_sms_sync = sms_sub.add_parser("sync", help="Sync and reconcile SMS from SIM storage into SQLite")
+    p_sms_sync.add_argument("--no-purge", action="store_true", help="Do not purge ingested messages from SIM card")
+    p_sms_sync.add_argument("--json", action="store_true", help="Output synced messages in structured JSON")
+
     
     # sim
     subparsers.add_parser("sim", help="Inspect SIM status, IMSI, and operator network")
@@ -117,7 +128,73 @@ def main(args=None):
 
         sys.exit(0 if resp.success else 1)
 
+    if parsed.subcommand == "sms":
+        import json
+        from mislty.storage.database import DatabaseManager
+        from mislty.storage.sms_store import SmsStore
+
+        db = DatabaseManager()
+        sms = SmsStore(db)
+
+        if parsed.sms_action == "list":
+            if parsed.thread is not None:
+                messages = sms.get_thread_messages(parsed.thread)
+                if parsed.json:
+                    print(json.dumps([m.as_dict() for m in messages], indent=2))
+                else:
+                    if not messages:
+                        print(f"No messages in thread #{parsed.thread}.")
+                    else:
+                        for m in messages:
+                            dir_symbol = "➔" if m.direction == "OUT" else "⬅"
+                            print(f"[{m.id}] {dir_symbol} {m.phone_number} ({time.ctime(m.timestamp)}): {m.body}")
+            else:
+                threads = sms.list_threads()
+                if parsed.json:
+                    print(json.dumps([t.as_dict() for t in threads], indent=2))
+                else:
+                    if not threads:
+                        print("No conversation threads found in local storage. (Run 'mislty sms sync' to fetch from SIM)")
+                    else:
+                        print(f"{'ID':<4} {'Recipient':<18} {'Unread':<8} {'Snippet':<40}")
+                        print("-" * 72)
+                        for t in threads:
+                            contact = f" ({t.contact_name})" if t.contact_name else ""
+                            recip = f"{t.recipient_number}{contact}"[:17]
+                            print(f"{t.id:<4} {recip:<18} {t.unread_count:<8} {t.snippet:<40}")
+            sys.exit(0)
+
+        elif parsed.sms_action == "sync":
+            from mislty.core.port_resolver import PortResolver
+            from mislty.core.serial_transport import SerialTransport
+            from mislty.core.at_parser import AtDispatcher
+
+            ports = PortResolver().resolve()
+            if not ports.control or not ports.control.exists():
+                print("Error: Modem control port not found.", file=sys.stderr)
+                sys.exit(1)
+
+            transport = SerialTransport(ports.control, timeout=3.0)
+            dispatcher = AtDispatcher(transport)
+
+            print("Syncing SMS messages from SIM storage (SM) into SQLite...")
+            ingested = sms.reconcile_sim_inbox(dispatcher, purge_sim=not parsed.no_purge)
+            transport.close()
+
+            if parsed.json:
+                print(json.dumps([m.as_dict() for m in ingested], indent=2))
+            else:
+                print(f"Successfully synced {len(ingested)} new message(s) into local database.")
+                for m in ingested:
+                    print(f"  • Ingested from {m.phone_number} (SIM slot {m.sim_index}): {m.body[:60]}...")
+            sys.exit(0)
+
+        elif not parsed.sms_action:
+            p_sms.print_help()
+            sys.exit(0)
+
     print(f"mislty: subcommand '{parsed.subcommand}' called (pipeline active).")
+
 
 
 
