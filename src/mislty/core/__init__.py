@@ -16,6 +16,17 @@ from mislty.core.at_parser import (
     CME_ERRORS,
     CMS_ERRORS,
 )
+from mislty.core.urc_demuxer import (
+    UrcDemuxer,
+    UrcEvent,
+    SmsReceivedEvent,
+    IncomingCallEvent,
+    CallTerminatedEvent,
+    NetworkRegistrationEvent,
+    ModeChangeEvent,
+    SignalChangeEvent,
+    RawUrcEvent,
+)
 
 __all__ = [
     "ModemPorts",
@@ -31,4 +42,13 @@ __all__ = [
     "AtDispatcher",
     "CME_ERRORS",
     "CMS_ERRORS",
+    "UrcDemuxer",
+    "UrcEvent",
+    "SmsReceivedEvent",
+    "IncomingCallEvent",
+    "CallTerminatedEvent",
+    "NetworkRegistrationEvent",
+    "ModeChangeEvent",
+    "SignalChangeEvent",
+    "RawUrcEvent",
 ]

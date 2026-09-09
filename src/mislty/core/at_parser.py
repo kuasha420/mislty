@@ -299,10 +299,12 @@ class AtDispatcher:
         self,
         transport: SerialTransport,
         urc_callback: Optional[Callable[[str], None]] = None,
+        lock: Optional[Union[threading.Lock, threading.RLock]] = None,
     ) -> None:
         self.transport = transport
         self.parser = AtParser(urc_callback=urc_callback)
-        self._lock = threading.Lock()
+        self._lock = lock if lock is not None else threading.RLock()
+
 
     def set_urc_callback(self, callback: Optional[Callable[[str], None]]) -> None:
         """Register or update URC callback."""
