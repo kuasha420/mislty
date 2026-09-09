@@ -1,0 +1,15 @@
+[Unit]
+Description=MisLTy Cellular & Wi-Fi Station Daemon (MDM9600)
+Documentation=https://github.com/kuasha420/mislty
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/misltyd --foreground
+Restart=on-failure
+RestartSec=3s
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
