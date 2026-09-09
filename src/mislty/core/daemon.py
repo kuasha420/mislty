@@ -31,6 +31,11 @@ from mislty.core.urc_demuxer import (
     UrcDemuxer,
 )
 
+from mislty.ipc.dbus_service import DbusService
+from mislty.ipc.dispatcher import IpcDispatcher
+from mislty.ipc.socket_server import JsonRpcSocketServer
+from mislty.net.ppp_controller import PppController
+from mislty.net.wifi_manager import WifiManager
 from mislty.storage.database import DatabaseManager
 from mislty.storage.metrics_store import MetricsStore, TelemetryRecord
 from mislty.storage.sms_store import SmsStore
@@ -76,6 +81,12 @@ class DaemonEngine:
         self.sms_store = SmsStore(self.db)
         self.metrics_store = MetricsStore(self.db)
         self.demuxer = UrcDemuxer()
+        self.ppp = PppController()
+        self.wifi = WifiManager()
+
+        self.ipc_dispatcher = IpcDispatcher(self)
+        self.socket_server = JsonRpcSocketServer(self.ipc_dispatcher)
+        self.dbus_service = DbusService(self.ipc_dispatcher)
 
         self.transport: Optional[SerialTransport] = None
         self.dispatcher: Optional[AtDispatcher] = None
@@ -102,18 +113,20 @@ class DaemonEngine:
         self.state.rssi = evt.rssi
         self.state.bars = evt.bars
         self.state.dbm = evt.dbm
+        self.dbus_service.emit_signal_quality(evt.rssi, evt.dbm or 0)
         logger.debug("URC Signal: %d bars (%d dBm)", evt.bars, evt.dbm or 0)
 
     def _on_mode_urc(self, evt: ModeChangeEvent) -> None:
         self.state.technology = evt.technology
+        self.dbus_service.emit_mode_changed(evt.technology)
         logger.info("URC Mode: %s", evt.technology)
 
     def _on_sysinfo_urc(self, evt: SysinfoEvent) -> None:
         self.state.technology = evt.technology
+        self.dbus_service.emit_mode_changed(evt.technology)
         logger.debug("URC Sysinfo: RAT=%s, srv_status=%d", evt.technology, evt.srv_status)
 
     def _on_net_urc(self, evt: NetworkRegistrationEvent) -> None:
-
         self.state.registration_status = evt.status
         logger.info("URC Network: %s status=%d (registered=%s)", evt.domain, evt.status, evt.is_registered)
 
@@ -122,7 +135,9 @@ class DaemonEngine:
         if self.dispatcher:
             try:
                 # Sync inbound message into SQLite
-                self.sms_store.reconcile_sim_inbox(self.dispatcher, purge_sim=False)
+                ingested = self.sms_store.reconcile_sim_inbox(self.dispatcher, purge_sim=False)
+                for msg in ingested:
+                    self.dbus_service.emit_sms_received(msg.phone_number, msg.body)
             except Exception as exc:
                 logger.error("Failed to reconcile incoming SMS from URC: %s", exc)
 
@@ -169,6 +184,7 @@ class DaemonEngine:
 
             self.state.connected = True
             self.state.reconnect_attempts = 0
+            self.wifi.dispatcher = self.dispatcher
             logger.info("Successfully connected to modem on %s", self.ports.control)
 
             # Initial SIM reconciliation
@@ -192,6 +208,7 @@ class DaemonEngine:
                 self.transport.close()
                 self.transport = None
             self.dispatcher = None
+            self.wifi.dispatcher = None
             logger.info("Disconnected from modem control port.")
 
     def poll_telemetry_once(self) -> None:
@@ -320,16 +337,25 @@ class DaemonEngine:
                 daemon=True,
             )
             self._watchdog_thread.start()
+
+            # Start IPC servers
+            self.socket_server.start()
+            self.dbus_service.start()
+
             logger.info("misltyd daemon engine started successfully.")
 
     def stop(self) -> None:
-        """Stop daemon engine and gracefully shut down all threads and ports."""
+        """Stop daemon engine and gracefully shut down all threads, IPC servers, and ports."""
         with self.shared_lock:
             if not self.state.is_running:
                 return
 
             self._stop_event.set()
             self.state.is_running = False
+
+            # Stop IPC servers
+            self.socket_server.stop()
+            self.dbus_service.stop()
 
             if self._poll_thread is not None:
                 self._poll_thread.join(timeout=2.0)
@@ -342,6 +368,98 @@ class DaemonEngine:
             self.disconnect_modem()
             self.db.close()
             logger.info("misltyd daemon engine stopped.")
+
+    def get_full_status(self) -> Dict[str, Any]:
+        """Collect complete diagnostic snapshot across daemon, hardware, cellular PPP, and Wi-Fi."""
+        with self.shared_lock:
+            ports_dict = self.ports.as_dict() if self.ports else self.resolver.resolve(prefer_udev=self.prefer_udev).as_dict()
+            ppp_stat = self.ppp.get_status().as_dict()
+            wifi_pwr = self.wifi.get_radio_power() if self.dispatcher else None
+            wifi_ssid = self.wifi.get_ssid_serial() if self.dispatcher else None
+            clients_count = 0
+            if self.ports and self.ports.aux_wifi_netns:
+                try:
+                    clients_count = len(self.wifi.get_connected_clients(netns=self.ports.aux_wifi_netns))
+                except Exception:
+                    pass
+
+            return {
+                "daemon": self.state.as_dict(),
+                "hardware": ports_dict,
+                "cellular_ppp": ppp_stat,
+                "wifi": {
+                    "power": wifi_pwr,
+                    "ssid": wifi_ssid,
+                    "clients_count": clients_count,
+                },
+            }
+
+    def connect_cellular(self, apn: str = "internet", default_route: bool = True, timeout: float = 20.0) -> bool:
+        """Initiate cellular PPP dial-up data plane connection."""
+        return self.ppp.connect(apn=apn, default_route=default_route, timeout=timeout)
+
+    def disconnect_cellular(self) -> bool:
+        """Terminate active cellular PPP data connection and restore routes."""
+        return self.ppp.disconnect()
+
+    def set_wifi_power(self, enable: bool) -> bool:
+        """Toggle Broadcom Wi-Fi radio power on/off."""
+        with self.shared_lock:
+            return self.wifi.set_radio_power(enable)
+
+    def set_wifi_credentials(self, ssid: str, password: Optional[str] = None) -> bool:
+        """Configure Wi-Fi SSID and password."""
+        with self.shared_lock:
+            netns = self.ports.aux_wifi_netns if self.ports else None
+            ok = self.wifi.set_clean_ssid_web(ssid, netns=netns)
+            if not ok:
+                ok = self.wifi.set_credentials_serial(ssid, password=password)
+            return ok
+
+    def get_wifi_clients(self) -> List[Dict[str, str]]:
+        """Query connected Wi-Fi client list."""
+        netns = self.ports.aux_wifi_netns if self.ports else None
+        return self.wifi.get_connected_clients(netns=netns)
+
+    def send_sms(self, recipient: str, text: str) -> Dict[str, Any]:
+        """Send an SMS text message through modem baseband."""
+        with self.shared_lock:
+            if not self.dispatcher or not self.state.connected:
+                raise RuntimeError("Modem is not connected.")
+            resp = self.dispatcher.send_sms(recipient, text)
+            if resp.success:
+                saved = self.sms_store.save_message(
+                    phone_number=recipient,
+                    body=text,
+                    direction="OUT",
+                    status="SENT",
+                    is_read=True,
+                )
+                return {"success": True, "message_id": saved.id, "recipient": recipient}
+            else:
+                return {"success": False, "error": resp.error, "error_detail": resp.error_detail}
+
+    def list_sms(self, thread_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """List SMS conversation threads or messages in a thread."""
+        if thread_id is not None:
+            return [m.as_dict() for m in self.sms_store.get_thread_messages(thread_id)]
+        return [t.as_dict() for t in self.sms_store.list_threads()]
+
+    def sync_sms(self, purge_sim: bool = True) -> List[Dict[str, Any]]:
+        """Sync and reconcile SMS messages from SIM card memory."""
+        with self.shared_lock:
+            if not self.dispatcher or not self.state.connected:
+                raise RuntimeError("Modem is not connected.")
+            messages = self.sms_store.reconcile_sim_inbox(self.dispatcher, purge_sim=purge_sim)
+            return [m.as_dict() for m in messages]
+
+    def execute_at(self, command: str, timeout: float = 3.0) -> Dict[str, Any]:
+        """Execute raw AT command on modem control channel under lock."""
+        with self.shared_lock:
+            if not self.dispatcher or not self.state.connected:
+                raise RuntimeError("Modem is not connected.")
+            resp = self.dispatcher.execute(command, timeout=timeout)
+            return resp.as_dict()
 
 
 def build_parser() -> argparse.ArgumentParser:

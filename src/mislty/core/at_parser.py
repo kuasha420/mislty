@@ -389,3 +389,54 @@ class AtDispatcher:
                 prompt_mode=at_cmd.prompt_mode,
                 execution_time_ms=elapsed_ms,
             )
+
+    def send_sms(self, recipient: str, body: str, timeout: float = 15.0) -> AtResponse:
+        """
+        Send an SMS message via 3GPP AT+CMGS in text mode under lock.
+        """
+        with self._lock:
+            start_time = time.monotonic()
+            prompt_res = self.execute(
+                AtCommand(command=f'AT+CMGS="{recipient}"', timeout=5.0, prompt_mode=True)
+            )
+            if not prompt_res.success:
+                return prompt_res
+
+            payload = f"{body}\x1a"
+            try:
+                self.transport.write(payload)
+            except SerialTransportError as exc:
+                elapsed = (time.monotonic() - start_time) * 1000.0
+                return AtResponse(
+                    command=f'AT+CMGS="{recipient}"',
+                    success=False,
+                    lines=[],
+                    raw_text="",
+                    error="TRANSPORT_ERROR",
+                    error_detail=str(exc),
+                    execution_time_ms=elapsed,
+                )
+
+            raw_lines: List[str] = []
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline:
+                rem_timeout = max(0.05, deadline - time.monotonic())
+                line = self.transport.read_line(timeout=rem_timeout)
+                if line is None:
+                    continue
+                clean_line = line.strip()
+                if clean_line:
+                    raw_lines.append(clean_line)
+                if any(clean_line == tok or clean_line.startswith(f"{tok} ") for tok in self.parser.TERMINAL_SUCCESS_TOKENS):
+                    break
+                if any(clean_line == tok or clean_line.startswith(f"{tok} ") for tok in self.parser.TERMINAL_FAILURE_TOKENS):
+                    break
+                if clean_line.startswith("+CME ERROR:") or clean_line.startswith("+CMS ERROR:"):
+                    break
+
+            elapsed_ms = (time.monotonic() - start_time) * 1000.0
+            return self.parser.parse_transaction(
+                f'AT+CMGS="{recipient}"',
+                raw_lines,
+                execution_time_ms=elapsed_ms,
+            )
