@@ -494,8 +494,9 @@ class WifiRelayManager:
 
         iface = self._status.interface
         clients: List[RelayClient] = []
+        arp_map = self._get_arp_table(iface)
 
-        # 1. Query stations via iw dev <iface> station dump
+        # 1. Query stations via iw dev <iface> station dump (if driver supports it)
         try:
             res = subprocess.run(
                 ["iw", "dev", iface, "station", "dump"],
@@ -503,79 +504,85 @@ class WifiRelayManager:
                 text=True,
                 timeout=3.0,
             )
-            if res.returncode != 0 or not res.stdout.strip():
-                return []
+            if res.returncode == 0 and res.stdout.strip():
+                current_mac: Optional[str] = None
+                current_signal: Optional[int] = None
+                rx_b = 0
+                tx_b = 0
+                inact = 0
 
-            # Read ARP table to map MAC -> IP
-            arp_map = self._get_arp_table(iface)
+                for line in res.stdout.splitlines():
+                    line = line.strip()
+                    if line.startswith("Station "):
+                        if current_mac:
+                            clients.append(RelayClient(
+                                mac=current_mac,
+                                ip=arp_map.get(current_mac.lower()),
+                                signal_dbm=current_signal,
+                                rx_bytes=rx_b,
+                                tx_bytes=tx_b,
+                                inactive_ms=inact,
+                            ))
+                        parts = line.split()
+                        current_mac = parts[1] if len(parts) >= 2 else None
+                        current_signal = None
+                        rx_b, tx_b, inact = 0, 0, 0
+                    elif line.startswith("signal:"):
+                        # Format: signal: -42 dBm
+                        sig_parts = line.split(":")[-1].replace("dBm", "").strip().split()
+                        if sig_parts and sig_parts[0].lstrip("-").isdigit():
+                            current_signal = int(sig_parts[0])
+                    elif line.startswith("rx bytes:"):
+                        val = line.split(":")[-1].strip()
+                        if val.isdigit():
+                            rx_b = int(val)
+                    elif line.startswith("tx bytes:"):
+                        val = line.split(":")[-1].strip()
+                        if val.isdigit():
+                            tx_b = int(val)
+                    elif line.startswith("inactive time:"):
+                        val = line.split(":")[-1].replace("ms", "").strip()
+                        if val.isdigit():
+                            inact = int(val)
 
-            current_mac: Optional[str] = None
-            current_signal: Optional[int] = None
-            rx_b = 0
-            tx_b = 0
-            inact = 0
-
-            for line in res.stdout.splitlines():
-                line = line.strip()
-                if line.startswith("Station "):
-                    # Flush previous station if any
-                    if current_mac:
-                        clients.append(RelayClient(
-                            mac=current_mac,
-                            ip=arp_map.get(current_mac.lower()),
-                            signal_dbm=current_signal,
-                            rx_bytes=rx_b,
-                            tx_bytes=tx_b,
-                            inactive_ms=inact,
-                        ))
-                    parts = line.split()
-                    current_mac = parts[1] if len(parts) >= 2 else None
-                    current_signal = None
-                    rx_b, tx_b, inact = 0, 0, 0
-                elif line.startswith("signal:"):
-                    # Format: signal: -42 dBm
-                    sig_parts = line.split(":")[-1].replace("dBm", "").strip().split()
-                    if sig_parts and sig_parts[0].lstrip("-").isdigit():
-                        current_signal = int(sig_parts[0])
-                elif line.startswith("rx bytes:"):
-                    val = line.split(":")[-1].strip()
-                    if val.isdigit():
-                        rx_b = int(val)
-                elif line.startswith("tx bytes:"):
-                    val = line.split(":")[-1].strip()
-                    if val.isdigit():
-                        tx_b = int(val)
-                elif line.startswith("inactive time:"):
-                    val = line.split(":")[-1].replace("ms", "").strip()
-                    if val.isdigit():
-                        inact = int(val)
-
-            if current_mac:
-                clients.append(RelayClient(
-                    mac=current_mac,
-                    ip=arp_map.get(current_mac.lower()),
-                    signal_dbm=current_signal,
-                    rx_bytes=rx_b,
-                    tx_bytes=tx_b,
-                    inactive_ms=inact,
-                ))
+                if current_mac:
+                    clients.append(RelayClient(
+                        mac=current_mac,
+                        ip=arp_map.get(current_mac.lower()),
+                        signal_dbm=current_signal,
+                        rx_bytes=rx_b,
+                        tx_bytes=tx_b,
+                        inactive_ms=inact,
+                    ))
 
         except Exception as exc:
             logger.debug("Failed to query stations on %s: %s", iface, exc)
 
+        # 2. Correlate with ARP / Neighbor table for any active clients not returned by iw
+        seen_macs = {c.mac.lower() for c in clients}
+        for mac, ip in arp_map.items():
+            if mac.lower() not in seen_macs:
+                clients.append(RelayClient(
+                    mac=mac,
+                    ip=ip,
+                    signal_dbm=None,
+                    rx_bytes=0,
+                    tx_bytes=0,
+                    inactive_ms=0,
+                ))
+
         return clients
 
     def _get_arp_table(self, iface: str) -> Dict[str, str]:
-        """Parse /proc/net/arp to map MAC addresses to IP addresses for given interface."""
+        """Parse /proc/net/arp and ip neigh to map MAC addresses to IP addresses for given interface."""
         arp_map: Dict[str, str] = {}
+        # 1. Parse /proc/net/arp
         try:
             arp_path = Path("/proc/net/arp")
             if arp_path.is_file():
                 lines = arp_path.read_text(encoding="utf-8").splitlines()
                 for line in lines[1:]:  # skip header
                     parts = line.split()
-                    # IP address       HW type     Flags       HW address            Mask     Device
-                    # parts: [0: IP, 1: HW_type, 2: Flags, 3: HW_addr, 4: Mask, 5: Device]
                     if len(parts) >= 6 and parts[5] == iface:
                         ip = parts[0]
                         mac = parts[3].lower()
@@ -583,6 +590,27 @@ class WifiRelayManager:
                             arp_map[mac] = ip
         except Exception as exc:
             logger.debug("Failed to read /proc/net/arp: %s", exc)
+
+        # 2. Augment with ip neigh show dev <iface>
+        try:
+            res = subprocess.run(
+                ["ip", "neigh", "show", "dev", iface],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+            )
+            if res.returncode == 0:
+                for line in res.stdout.splitlines():
+                    parts = line.strip().split()
+                    if len(parts) >= 4 and "lladdr" in parts:
+                        idx = parts.index("lladdr")
+                        if idx + 1 < len(parts):
+                            ip = parts[0]
+                            mac = parts[idx + 1].lower()
+                            if mac != "00:00:00:00:00:00":
+                                arp_map[mac] = ip
+        except Exception as exc:
+            logger.debug("Failed to query ip neigh: %s", exc)
 
         return arp_map
 
