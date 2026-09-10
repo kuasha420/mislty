@@ -36,6 +36,8 @@ class WlanDevice:
     mac: str = ""
     state: str = "disconnected"
     is_primary: bool = False
+    is_in_use: bool = False
+    active_connection: Optional[str] = None
     supports_ap: bool = False
     is_candidate: bool = False
 
@@ -96,12 +98,38 @@ class WifiRelayManager:
         self.sys_net_path = Path(sys_net_path) if sys_net_path else Path("/sys/class/net")
         self._status = RelayStatus()
 
-    def get_primary_interface(self) -> Optional[str]:
+    def get_active_wifi_devices(self) -> Dict[str, str]:
         """
-        Identify the host's primary network interface using kernel default routing
-        and NetworkManager active connections to ensure it is never disrupted.
+        Identify all Wi-Fi network interfaces that are actively connected to an
+        external network (e.g. host Wi-Fi uplink). Excludes mislty-relay softAP.
+        Returns a mapping of {interface_name: connection_name}.
         """
-        # 1. Check ip route show default
+        active: Dict[str, str] = {}
+
+        # 1. Query NetworkManager device status
+        try:
+            res = subprocess.run(
+                ["nmcli", "-t", "-f", "DEVICE,TYPE,STATE,CONNECTION", "d"],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+            )
+            if res.returncode == 0:
+                for line in res.stdout.splitlines():
+                    parts = line.strip().split(":")
+                    if len(parts) >= 4:
+                        dev = parts[0].strip()
+                        dev_type = parts[1].strip()
+                        state = parts[2].strip()
+                        con = ":".join(parts[3:]).strip()
+                        if dev_type == "wifi" and state.startswith("connected"):
+                            # Exclude our own relay softAP connection
+                            if con != self.CON_NAME:
+                                active[dev] = con or "connected"
+        except Exception as exc:
+            logger.debug("Failed to query nmcli for active devices: %s", exc)
+
+        # 2. Check kernel default route as fallback
         try:
             res = subprocess.run(
                 ["ip", "route", "show", "default"],
@@ -114,37 +142,33 @@ class WifiRelayManager:
                     parts = line.strip().split()
                     if "dev" in parts:
                         dev = parts[parts.index("dev") + 1]
-                        if not dev.startswith("ppp") and not dev.startswith("mislty"):
-                            return dev
+                        if not dev.startswith("ppp") and not dev.startswith("mislty") and dev not in active:
+                            dev_dir = self.sys_net_path / dev
+                            if (dev_dir / "wireless").exists() or (dev_dir / "phy80211").exists():
+                                active[dev] = "default-route"
         except Exception as exc:
             logger.debug("Failed to query ip route for primary dev: %s", exc)
 
-        # 2. Check nmcli active connections
-        try:
-            res = subprocess.run(
-                ["nmcli", "-t", "-f", "DEVICE,TYPE,STATE", "d"],
-                capture_output=True,
-                text=True,
-                timeout=2.0,
-            )
-            if res.returncode == 0:
-                for line in res.stdout.splitlines():
-                    parts = line.strip().split(":")
-                    if len(parts) >= 3 and parts[1] == "wifi" and parts[2] == "connected":
-                        return parts[0]
-        except Exception as exc:
-            logger.debug("Failed to query nmcli for primary dev: %s", exc)
+        return active
 
-        return None
+    def get_primary_interface(self) -> Optional[str]:
+        """
+        Identify the host's primary active Wi-Fi interface, if any.
+        Returns None when the host has no active Wi-Fi connection (e.g. PPP-only mode).
+        """
+        active = self.get_active_wifi_devices()
+        return next(iter(active.keys()), None)
 
     def list_devices(self) -> List[WlanDevice]:
         """
         Enumerate all host wireless network interfaces, discovering hardware drivers,
         vendor/model info, AP mode capability, and determining relay candidates.
-        Guarantees the host's primary active connection is flagged for protection.
+        Host Link Protection is dynamic state-based: only devices currently connected
+        to an external network are protected. Any idle/disconnected device supporting
+        AP mode is marked as an available candidate.
         """
         devices: List[WlanDevice] = []
-        primary_dev = self.get_primary_interface()
+        active_wifi = self.get_active_wifi_devices()
 
         net_path = self.sys_net_path
         if not net_path.exists():
@@ -190,8 +214,12 @@ class WifiRelayManager:
             # Check AP capability via iw phy
             supports_ap = self._check_ap_support(phy, iface)
 
-            is_primary = (iface == primary_dev)
-            is_candidate = supports_ap and not is_primary
+            # Dynamic state-based host link protection:
+            # Protected only if actively connected to an external Wi-Fi network.
+            is_in_use = (iface in active_wifi)
+            active_con = active_wifi.get(iface)
+            is_primary = is_in_use  # Kept for backward compatibility
+            is_candidate = supports_ap and not is_in_use
 
             devices.append(WlanDevice(
                 iface=iface,
@@ -202,6 +230,8 @@ class WifiRelayManager:
                 mac=mac,
                 state=state,
                 is_primary=is_primary,
+                is_in_use=is_in_use,
+                active_connection=active_con,
                 supports_ap=supports_ap,
                 is_candidate=is_candidate,
             ))
@@ -299,12 +329,13 @@ class WifiRelayManager:
         forwarding, and attach table 420 policy routing to steer client packets out WAN.
         Refuses to touch primary host interface.
         """
-        # Guard against touching primary host connection
-        primary_dev = self.get_primary_interface()
-        if interface == primary_dev:
+        # Guard against touching actively connected host Wi-Fi connections
+        active_wifi = self.get_active_wifi_devices()
+        if interface in active_wifi:
+            conn = active_wifi[interface]
             raise ValueError(
-                f"Interface '{interface}' is the primary host Wi-Fi connection. "
-                "Cannot use primary connection as hotspot relay to protect network integrity."
+                f"Interface '{interface}' is actively connected to '{conn}'. "
+                "Cannot use an active host Wi-Fi connection as hotspot relay to protect network integrity."
             )
 
         # Check if already running on same interface and parameters

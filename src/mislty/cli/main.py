@@ -392,9 +392,14 @@ def main(args=None):
                     print(fmt.dim("=" * 60))
                     rows = []
                     for d in devs:
-                        role = fmt.cyan("PROTECTED (Host Link)") if d.get("is_primary") else (
-                            fmt.green("CANDIDATE (Relay Hotspot)") if d.get("is_candidate") else fmt.yellow("Unsupported")
-                        )
+                        if d.get("is_in_use") or d.get("is_primary"):
+                            conn = d.get("active_connection")
+                            label = f"PROTECTED ({conn})" if conn else "PROTECTED (Host Link)"
+                            role = fmt.cyan(label)
+                        elif d.get("is_candidate"):
+                            role = fmt.green("CANDIDATE (Relay Hotspot)")
+                        else:
+                            role = fmt.yellow("Unsupported")
                         rows.append([
                             d.get("iface", ""),
                             f"{d.get('vendor', '')} {d.get('model', '')}".strip() or "Unknown Adapter",
@@ -407,14 +412,18 @@ def main(args=None):
 
             elif parsed.relay_action == "start":
                 print(f"Starting Wi-Fi Hotspot Relay on {parsed.interface} (SSID: '{parsed.ssid}')...")
-                res = client.start_hotspot_relay(
-                    interface=parsed.interface,
-                    ssid=parsed.ssid,
-                    password=parsed.password,
-                    band=parsed.band,
-                    channel=parsed.channel,
-                    wan_iface=parsed.wan,
-                )
+                try:
+                    res = client.start_hotspot_relay(
+                        interface=parsed.interface,
+                        ssid=parsed.ssid,
+                        password=parsed.password,
+                        band=parsed.band,
+                        channel=parsed.channel,
+                        wan_iface=parsed.wan,
+                    )
+                except Exception as exc:
+                    print(fmt.red(f"Failed to start Hotspot Relay: {exc}"), file=sys.stderr)
+                    sys.exit(1)
                 if parsed.json:
                     print(json.dumps(res, indent=2))
                 else:

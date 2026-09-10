@@ -508,7 +508,8 @@ Item {
                                         var labels = [];
                                         for (var i = 0; i < devs.length; i++) {
                                             var d = devs[i];
-                                            var tag = d.is_primary ? " [Protected Host]" : (d.is_candidate ? " [Candidate AP]" : " [Unsupported]");
+                                            var isConnected = d.is_in_use || d.is_primary;
+                                            var tag = isConnected ? (" [Connected: " + (d.active_connection ? d.active_connection : "Host Link") + "]") : (d.is_candidate ? " [Candidate AP]" : " [Unsupported]");
                                             var name = d.iface + " (" + (d.vendor ? d.vendor + " " : "") + (d.model ? d.model : d.driver) + ")" + tag;
                                             labels.push(name);
                                         }
@@ -673,6 +674,14 @@ Item {
                             iconGlyph: (bridge?.relayActive ?? false) ? "🛑" : "📡"
                             implicitWidth: 180
                             implicitHeight: 38
+                            enabled: {
+                                if (bridge?.relayActive ?? false) return true;
+                                var devs = bridge?.wlanDevices ?? [];
+                                if (devs.length > relayDeviceBox.currentIndex) {
+                                    return devs[relayDeviceBox.currentIndex].is_candidate === true;
+                                }
+                                return false;
+                            }
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     if (bridge.relayActive) {
@@ -705,12 +714,33 @@ Item {
 
                         Text {
                             Layout.fillWidth: true
-                            text: (bridge?.relayActive ?? false)
-                                ? ("● Broadcasting on " + (bridge?.relayInterface ?? "wlan1") + " (" + (bridge?.relaySsid ?? "") + ") • Gateway: " + (bridge?.relayIpAddress ?? "10.42.0.1") + " • Upstream WAN: " + (bridge?.relayWanInterface ?? "ppp0") + " (LTE)")
-                                : "Auxiliary adapter ready. Click 'Start Hotspot Relay' to broadcast Wi-Fi softAP and forward client traffic out 4G modem."
+                            text: {
+                                if (bridge?.relayActive ?? false) {
+                                    return "● Broadcasting on " + (bridge?.relayInterface ?? "wlan1") + " (" + (bridge?.relaySsid ?? "") + ") • Gateway: " + (bridge?.relayIpAddress ?? "10.42.0.1") + " • Upstream WAN: " + (bridge?.relayWanInterface ?? "ppp0") + " (LTE)";
+                                }
+                                var devs = bridge?.wlanDevices ?? [];
+                                if (devs.length > relayDeviceBox.currentIndex) {
+                                    var sel = devs[relayDeviceBox.currentIndex];
+                                    if (sel.is_in_use || sel.is_primary) {
+                                        return "⚠️ Selected adapter " + sel.iface + " is actively connected to '" + (sel.active_connection || "Host Link") + "'. Select an idle candidate adapter.";
+                                    }
+                                    if (!sel.supports_ap) {
+                                        return "⚠️ Selected adapter " + sel.iface + " does not support AP mode.";
+                                    }
+                                }
+                                return "Auxiliary adapter ready. Click 'Start Hotspot Relay' to broadcast Wi-Fi softAP and forward client traffic out 4G modem.";
+                            }
                             font.family: Theme.fontMono
                             font.pixelSize: Theme.fontSizeSmall
-                            color: (bridge?.relayActive ?? false) ? Theme.colorSuccess : Theme.textMuted
+                            color: {
+                                if (bridge?.relayActive ?? false) return Theme.colorSuccess;
+                                var devs = bridge?.wlanDevices ?? [];
+                                if (devs.length > relayDeviceBox.currentIndex) {
+                                    var sel = devs[relayDeviceBox.currentIndex];
+                                    if (!sel.is_candidate) return Theme.colorWarning;
+                                }
+                                return Theme.textMuted;
+                            }
                             elide: Text.ElideRight
                         }
 
