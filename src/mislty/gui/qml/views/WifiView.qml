@@ -10,20 +10,24 @@ Item {
     property bool showPassword: false
 
     ScrollView {
+        id: scroll
         anchors.fill: parent
         clip: true
         contentWidth: availableWidth
+        rightPadding: 16
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
         ColumnLayout {
-            width: parent.width
-            spacing: Theme.spacingLg
+            width: scroll.availableWidth
+            spacing: Theme.spacingMd
 
             // ===============================================================
             // TOP HERO CARD: WI-FI RADIO CONTROLLER & DUAL-PLANE STATE
             // ===============================================================
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 110
+                implicitHeight: 96
                 radius: Theme.radiusLg
                 color: Theme.colorObsidian
                 border.color: (bridge?.wifiPower ?? false) ? Theme.colorBorderActive : Theme.colorBorder
@@ -33,13 +37,13 @@ Item {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: Theme.spacingLg
-                    spacing: Theme.spacingXl
+                    anchors.margins: Theme.spacingMd
+                    spacing: Theme.spacingMd
 
                     // Radio Icon Tile
                     Rectangle {
-                        width: 56
-                        height: 56
+                        width: 48
+                        height: 48
                         radius: Theme.radiusMd
                         color: (bridge?.wifiPower ?? false) ? Qt.rgba(0, 240, 255, 0.12) : Qt.rgba(121, 130, 169, 0.12)
                         border.color: (bridge?.wifiPower ?? false) ? Theme.colorCyan : Theme.colorBorder
@@ -48,24 +52,26 @@ Item {
                         Text {
                             anchors.centerIn: parent
                             text: (bridge?.wifiPower ?? false) ? "📶" : "💤"
-                            font.pixelSize: 26
+                            font.pixelSize: 22
                         }
                     }
 
                     // Radio Metadata
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 4
+                        spacing: 3
 
                         RowLayout {
+                            Layout.fillWidth: true
                             spacing: Theme.spacingSm
 
                             Text {
-                                text: (bridge?.wifiPower ?? false) ? "Broadcom 802.11b/g/n: ACTIVE" : "Broadcom Wi-Fi Radio: STANDBY"
+                                text: (bridge?.wifiPower ?? false) ? "Wi-Fi Hotspot: ACTIVE" : "Wi-Fi Hotspot: STANDBY"
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeH2
                                 font.weight: Font.Bold
                                 color: (bridge?.wifiPower ?? false) ? Theme.colorSuccess : Theme.textMuted
+                                elide: Text.ElideRight
                             }
 
                             Rectangle {
@@ -86,25 +92,29 @@ Item {
                                     color: Theme.colorCyan
                                 }
                             }
+
+                            Item { Layout.fillWidth: true }
                         }
 
                         Text {
+                            Layout.fillWidth: true
                             text: (bridge?.wifiPower ?? false)
-                                ? ("Broadcasting clean SSID '" + ((bridge?.wifiSsid && bridge.wifiSsid.length > 0) ? bridge.wifiSsid : "Active") + "' • Channel 11 • 2.4 GHz")
+                                ? ("Broadcom 802.11b/g/n • SSID '" + ((bridge?.wifiSsid && bridge.wifiSsid.length > 0) ? bridge.wifiSsid : "Active") + "' • Channel 11")
                                 : "Radio powered down into low-power sleep mode (commit to NVRAM)."
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontSizeCaption
                             color: Theme.textSecondary
+                            elide: Text.ElideRight
                         }
                     }
 
                     // Radio Power Toggle Action
                     FelineButton {
-                        text: (bridge?.wifiPower ?? false) ? "Power Off Radio" : "Power On Radio"
+                        text: (bridge?.wifiPower ?? false) ? "Power Off" : "Power On"
                         variant: (bridge?.wifiPower ?? false) ? "danger" : "gold"
                         iconGlyph: "⚡"
-                        implicitWidth: 160
-                        implicitHeight: 44
+                        implicitWidth: 125
+                        implicitHeight: 40
                         onClicked: {
                             if (typeof bridge !== "undefined" && bridge) {
                                 bridge.toggleWifi();
@@ -123,8 +133,8 @@ Item {
                 subtitle: "Sub-4s seamless handover between Host USB Modem and Standalone Pocket Router"
 
                 RowLayout {
-                    anchors.fill: parent
-                    spacing: Theme.spacingXl
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingLg
 
                     // USB Modem Mode Card Option
                     Rectangle {
@@ -168,6 +178,8 @@ Item {
                                     font.family: Theme.fontSans
                                     font.pixelSize: Theme.fontSizeSmall
                                     color: Theme.textSecondary
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
                                 }
                             }
                         }
@@ -215,6 +227,8 @@ Item {
                                     font.family: Theme.fontSans
                                     font.pixelSize: Theme.fontSizeSmall
                                     color: Theme.textSecondary
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
                                 }
                             }
                         }
@@ -231,7 +245,7 @@ Item {
                 subtitle: "Writes clean un-suffixed SSID via embedded GoForm API (no manufacturer MAC tail)"
 
                 ColumnLayout {
-                    anchors.fill: parent
+                    Layout.fillWidth: true
                     spacing: Theme.spacingMd
 
                     RowLayout {
@@ -310,7 +324,7 @@ Item {
 
                         // Channel Selector
                         ColumnLayout {
-                            width: 140
+                            Layout.preferredWidth: 140
                             spacing: Theme.spacingXs
 
                             Text { text: "CHANNEL"; font.family: Theme.fontMono; font.pixelSize: Theme.fontSizeSmall; color: Theme.textSecondary }
@@ -325,9 +339,19 @@ Item {
                                 ComboBox {
                                     id: channelBox
                                     anchors.fill: parent
-                                    model: ["Channel 11 (2462 MHz)", "Channel 6 (2437 MHz)", "Channel 1 (2412 MHz)", "Channel 0 (Auto)"]
+                                    model: ["Ch 11 (2.46 GHz)", "Ch 6 (2.43 GHz)", "Ch 1 (2.41 GHz)", "Ch 0 (Auto)"]
                                     currentIndex: 0
-                                    background: null
+                                    background: Rectangle { color: "transparent" }
+                                    contentItem: TextEdit {
+                                        readOnly: true
+                                        selectByMouse: false
+                                        leftPadding: 10
+                                        text: channelBox.displayText
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textPrimary
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
                                 }
                             }
                         }
@@ -336,12 +360,13 @@ Item {
                     // Save / Apply Row
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: Theme.spacingMd
+                        spacing: Theme.spacingSm
 
                         FelineButton {
-                            text: "Open Web UI (192.168.100.1)"
+                            text: "Open Web UI"
                             variant: "outline"
                             iconGlyph: "🌐"
+                            implicitHeight: 38
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     bridge.openWebUi();
@@ -350,9 +375,10 @@ Item {
                         }
 
                         FelineButton {
-                            text: "Reboot Modem Hardware"
+                            text: "Reboot Modem"
                             variant: "secondary"
                             iconGlyph: "🔄"
+                            implicitHeight: 38
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     bridge.rebootModem();
@@ -366,7 +392,7 @@ Item {
                             text: "Apply Credentials"
                             variant: "primary"
                             iconGlyph: "💾"
-                            implicitWidth: 160
+                            implicitWidth: 150
                             implicitHeight: 38
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
@@ -387,12 +413,12 @@ Item {
             // ===============================================================
             Card {
                 Layout.fillWidth: true
-                implicitHeight: 220
                 title: "Connected Wireless Client Stations"
                 subtitle: "Real-time inventory scraped from embedded QC-Webs station_list.asp"
 
                 ColumnLayout {
-                    anchors.fill: parent
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
                     spacing: Theme.spacingSm
 
                     RowLayout {
@@ -432,16 +458,17 @@ Item {
                     ListView {
                         id: stationList
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
+                        implicitHeight: Math.max(90, Math.min(240, (bridge?.wifiStations?.length ?? 0) * 44))
                         clip: true
                         model: bridge?.wifiStations ?? []
 
                         delegate: Rectangle {
                             required property var modelData
+                            required property int index
                             width: stationList.width
                             height: 42
                             radius: Theme.radiusSm
-                            color: (modelData.index % 2 === 0) ? Theme.colorObsidian : "transparent"
+                            color: (index % 2 === 0) ? Theme.colorObsidian : "transparent"
 
                             RowLayout {
                                 anchors.fill: parent
@@ -450,7 +477,7 @@ Item {
                                 spacing: Theme.spacingLg
 
                                 Text {
-                                    text: "#" + modelData.index
+                                    text: "#" + (index + 1)
                                     font.family: Theme.fontMono
                                     font.pixelSize: Theme.fontSizeSmall
                                     color: Theme.textMuted

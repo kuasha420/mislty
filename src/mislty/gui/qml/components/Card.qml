@@ -17,6 +17,10 @@ Rectangle {
     border.width: 1
     radius: Theme.radiusMd
 
+    implicitWidth: 240
+    Layout.minimumWidth: 200
+    implicitHeight: cardColumn.implicitHeight + (Theme.spacingLg * 2)
+
     Behavior on color { ColorAnimation { duration: Theme.animFast } }
     Behavior on border.color { ColorAnimation { duration: Theme.animFast } }
 
@@ -28,11 +32,13 @@ Rectangle {
     }
 
     ColumnLayout {
+        id: cardColumn
         anchors.fill: parent
         anchors.margins: Theme.spacingLg
         spacing: Theme.spacingMd
 
         RowLayout {
+            id: headerRow
             Layout.fillWidth: true
             visible: root.title.length > 0
             spacing: Theme.spacingSm
@@ -47,6 +53,8 @@ Rectangle {
                     font.pixelSize: Theme.fontSizeH3
                     font.weight: Font.DemiBold
                     color: root.headerColor
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
                 }
 
                 Text {
@@ -55,14 +63,17 @@ Rectangle {
                     font.family: Theme.fontSans
                     font.pixelSize: Theme.fontSizeCaption
                     color: Theme.textSecondary
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
                 }
             }
         }
 
-        Item {
+        ColumnLayout {
             id: contentArea
             Layout.fillWidth: true
             Layout.fillHeight: true
+            spacing: Theme.spacingMd
         }
     }
 }

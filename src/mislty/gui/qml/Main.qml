@@ -155,7 +155,9 @@ ApplicationWindow {
             // ---------------------------------------------------------------
             Rectangle {
                 Layout.fillHeight: true
-                width: 210
+                Layout.preferredWidth: 200
+                Layout.minimumWidth: 200
+                Layout.maximumWidth: 200
                 color: Theme.colorObsidian
                 border.color: Theme.colorBorder
                 border.width: 1
@@ -282,6 +284,7 @@ ApplicationWindow {
                 StackLayout {
                     id: deckStack
                     anchors.fill: parent
+                    anchors.margins: Theme.spacingMd
                     currentIndex: bridge?.activeDeck ?? 0
 
                     DashboardView {

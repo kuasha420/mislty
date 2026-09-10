@@ -11,8 +11,7 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.spacingXl
-        spacing: Theme.spacingLg
+        spacing: Theme.spacingMd
 
         Card {
             Layout.fillWidth: true
@@ -21,7 +20,8 @@ Item {
             subtitle: "Direct serial port transaction console"
 
             ColumnLayout {
-                anchors.fill: parent
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 spacing: Theme.spacingMd
 
                 // Console Output
@@ -59,20 +59,20 @@ Item {
                     spacing: Theme.spacingSm
 
                     Text {
-                        text: "QUICK COMMANDS:"
+                        text: "QUICK:"
                         font.family: Theme.fontMono
                         font.pixelSize: Theme.fontSizeSmall
                         color: Theme.textMuted
                     }
 
                     Repeater {
-                        model: ["AT+CSQ", "AT+COPS?", "AT+CPIN?", "AT+CGMI", "AT+CGMR", "AT$MYWIFI?"]
+                        model: ["AT+CSQ", "AT+COPS?", "AT+CPIN?", "AT+CGMI", "AT$MYWIFI?"]
                         FelineButton {
                             required property string modelData
                             text: modelData
                             variant: "outline"
                             implicitHeight: 26
-                            implicitWidth: 80
+                            implicitWidth: 72
                             onClicked: {
                                 atInput.text = modelData;
                                 sendCommand(modelData);
@@ -83,10 +83,10 @@ Item {
                     Item { Layout.fillWidth: true }
 
                     FelineButton {
-                        text: "Clear Log"
+                        text: "Clear"
                         variant: "secondary"
                         implicitHeight: 26
-                        implicitWidth: 80
+                        implicitWidth: 60
                         onClicked: {
                             root.consoleLog = "";
                         }
@@ -130,7 +130,7 @@ Item {
                         text: "Execute"
                         variant: "primary"
                         iconGlyph: "⚡"
-                        implicitWidth: 100
+                        implicitWidth: 96
                         implicitHeight: 38
                         disabled: !atInput.text
                         onClicked: sendCommand(atInput.text)

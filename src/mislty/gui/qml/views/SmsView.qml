@@ -89,7 +89,8 @@ Item {
             subtitle: "SQLite Threaded Archive"
 
             ColumnLayout {
-                anchors.fill: parent
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 spacing: Theme.spacingMd
 
                 // Action Bar: Sync SIM & New Thread
@@ -214,7 +215,7 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 root.activeThreadId = modelData.id;
-                                root.activeRecipient = modelData.recipient_number;
+                                root.activeRecipient = modelData.recipient_number ? modelData.recipient_number : (modelData.recipient ? modelData.recipient : "");
                                 root.activeContactName = modelData.contact_name || "";
                                 if (typeof bridge !== "undefined" && bridge) {
                                     bridge.getSmsMessages(modelData.id);
@@ -237,7 +238,9 @@ Item {
                                     spacing: Theme.spacingSm
 
                                     Text {
-                                        text: modelData.contact_name ? modelData.contact_name : modelData.recipient_number
+                                        text: (modelData.contact_name && modelData.contact_name.length > 0)
+                                              ? modelData.contact_name
+                                              : (modelData.recipient_number ? modelData.recipient_number : (modelData.recipient ? modelData.recipient : "Unknown"))
                                         font.family: modelData.contact_name ? Theme.fontSans : Theme.fontMono
                                         font.pixelSize: Theme.fontSizeBody
                                         font.weight: Font.Bold
@@ -247,7 +250,7 @@ Item {
                                     }
 
                                     Text {
-                                        text: root.formatThreadTime(modelData.updated_at)
+                                        text: root.formatThreadTime(modelData.updated_at || modelData.last_time)
                                         font.family: Theme.fontMono
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.textMuted
@@ -259,7 +262,7 @@ Item {
                                     spacing: Theme.spacingSm
 
                                     Text {
-                                        text: modelData.snippet ? modelData.snippet : "No messages"
+                                        text: modelData.snippet ? modelData.snippet : (modelData.last_message ? modelData.last_message : "No messages")
                                         font.family: Theme.fontSans
                                         font.pixelSize: Theme.fontSizeCaption
                                         color: Theme.textSecondary
@@ -316,7 +319,8 @@ Item {
             subtitle: root.activeThreadId > 0 ? "3GPP SMS Conversation" : "Send direct SMS message"
 
             ColumnLayout {
-                anchors.fill: parent
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 spacing: Theme.spacingMd
 
                 // Conversation Action Toolbar (when thread is selected)
@@ -415,6 +419,8 @@ Item {
                     Layout.fillHeight: true
                     clip: true
                     spacing: Theme.spacingMd
+                    topMargin: Theme.spacingSm
+                    bottomMargin: Theme.spacingSm
                     model: bridge?.smsMessages ?? []
 
                     // Auto scroll to bottom on new messages
@@ -434,6 +440,8 @@ Item {
 
                     Text {
                         anchors.centerIn: parent
+                        width: Math.min(parent.width - 40, 420)
+                        wrapMode: Text.WordWrap
                         visible: messagesList.count === 0
                         text: root.activeRecipient.length > 0
                               ? "No messages in this conversation yet."
@@ -495,7 +503,7 @@ Item {
                                 }
 
                                 Text {
-                                    text: "+8801XXXXXXXXX or international MSISDN"
+                                    text: "+8801... or MSISDN"
                                     visible: !recipientInput.text
                                     color: Theme.textMuted
                                     font.family: Theme.fontMono
@@ -522,12 +530,16 @@ Item {
                                 anchors.fill: parent
                                 anchors.margins: Theme.spacingSm
                                 clip: true
+                                ScrollBar.vertical.policy: ScrollBar.AsNeeded
+                                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
                                 TextArea {
                                     id: msgInput
                                     font.family: Theme.fontSans
                                     font.pixelSize: Theme.fontSizeBody
                                     color: Theme.textPrimary
+                                    placeholderTextColor: Theme.textMuted
+                                    rightPadding: 16
                                     wrapMode: Text.Wrap
                                     selectByMouse: true
                                     background: null

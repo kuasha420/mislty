@@ -33,8 +33,7 @@ Item {
 
     RowLayout {
         anchors.fill: parent
-        anchors.margins: Theme.spacingXl
-        spacing: Theme.spacingLg
+        spacing: Theme.spacingMd
 
         // Left Card: 12-Button Keypad & Call Control
         Card {
@@ -44,13 +43,15 @@ Item {
             subtitle: "PipeWire PCM Loopback Bridge (8000 Hz S16_LE)"
 
             ColumnLayout {
-                anchors.fill: parent
-                spacing: Theme.spacingMd
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: Theme.spacingSm
 
                 // Number Display Screen
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 80
+                    Layout.preferredHeight: 62
+                    Layout.maximumHeight: 62
                     radius: Theme.radiusMd
                     color: Theme.colorObsidian
                     border.color: Theme.colorBorder
@@ -58,7 +59,7 @@ Item {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.margins: Theme.spacingLg
+                        anchors.margins: Theme.spacingMd
                         spacing: Theme.spacingMd
 
                         ColumnLayout {
@@ -115,7 +116,7 @@ Item {
                             Text {
                                 text: root.dialInput.length > 0 ? root.dialInput : "Enter number..."
                                 font.family: Theme.fontMono
-                                font.pixelSize: 26
+                                font.pixelSize: 20
                                 font.weight: Font.Bold
                                 color: root.dialInput.length > 0 ? Theme.colorCyan : Theme.textMuted
                                 elide: Text.ElideLeft
@@ -179,6 +180,8 @@ Item {
                             required property var modelData
                             Layout.fillWidth: true
                             Layout.fillHeight: true
+                            Layout.preferredHeight: 44
+                            Layout.minimumHeight: 36
                             radius: Theme.radiusMd
                             color: btnHover.pressed
                                    ? Qt.rgba(0, 240, 255, 0.25)
@@ -227,12 +230,14 @@ Item {
                 // Call Action Bar
                 RowLayout {
                     Layout.fillWidth: true
+                    Layout.preferredHeight: 40
+                    implicitHeight: 40
                     spacing: Theme.spacingMd
 
                     // Call Button
                     Rectangle {
                         Layout.fillWidth: true
-                        height: 48
+                        Layout.fillHeight: true
                         radius: Theme.radiusMd
                         color: (root.dialInput.length === 0 || root.activeCallState !== "IDLE")
                                ? Theme.colorCardHover
@@ -269,7 +274,7 @@ Item {
                     // Hangup Button
                     Rectangle {
                         Layout.fillWidth: true
-                        height: 48
+                        Layout.fillHeight: true
                         radius: Theme.radiusMd
                         color: (root.activeCallState === "IDLE")
                                ? Theme.colorCardHover
@@ -314,7 +319,8 @@ Item {
             subtitle: "Qualcomm Baseband Architecture"
 
             ColumnLayout {
-                anchors.fill: parent
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 spacing: Theme.spacingLg
 
                 Rectangle {
@@ -427,7 +433,7 @@ Item {
         id: tragicVoiceModal
         anchors.fill: parent
         color: Qt.rgba(12, 14, 20, 0.85)
-        visible: root.showTragicVoiceModal || (bridge?.tragicVoiceVisible ?? false)
+        visible: root.showTragicVoiceModal || (bridge?.tragicVoiceVisible ?? false) || (bridge?.tragicVoiceModalVisible ?? false)
         z: 999
 
         MouseArea {

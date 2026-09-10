@@ -8,20 +8,24 @@ Item {
     id: root
 
     ScrollView {
+        id: scroll
         anchors.fill: parent
         clip: true
         contentWidth: availableWidth
+        rightPadding: 16
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
         ColumnLayout {
-            width: parent.width
-            spacing: Theme.spacingLg
+            width: scroll.availableWidth
+            spacing: Theme.spacingMd
 
             // ===============================================================
             // TOP STATUS & QUICK ACTION HERO BANNER
             // ===============================================================
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 104
+                implicitHeight: 96
                 radius: Theme.radiusLg
                 color: Theme.colorObsidian
                 border.color: (bridge?.connected ?? false) ? Theme.colorBorderActive : Theme.colorBorder
@@ -31,13 +35,13 @@ Item {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: Theme.spacingLg
-                    spacing: Theme.spacingXl
+                    anchors.margins: Theme.spacingMd
+                    spacing: Theme.spacingMd
 
                     // Connection Status Icon / Glow Tile
                     Rectangle {
-                        width: 56
-                        height: 56
+                        width: 48
+                        height: 48
                         radius: Theme.radiusMd
                         color: (bridge?.connected ?? false) ? Qt.rgba(0, 240, 255, 0.12) : Qt.rgba(255, 51, 102, 0.12)
                         border.color: (bridge?.connected ?? false) ? Theme.colorCyan : Theme.colorDanger
@@ -46,7 +50,7 @@ Item {
                         Text {
                             anchors.centerIn: parent
                             text: (bridge?.connected ?? false) ? "⚡" : "✕"
-                            font.pixelSize: 26
+                            font.pixelSize: 22
                             color: (bridge?.connected ?? false) ? Theme.colorCyan : Theme.colorDanger
                         }
                     }
@@ -57,6 +61,7 @@ Item {
                         spacing: 4
 
                         RowLayout {
+                            Layout.fillWidth: true
                             spacing: Theme.spacingSm
 
                             Text {
@@ -65,6 +70,7 @@ Item {
                                 font.pixelSize: Theme.fontSizeH2
                                 font.weight: Font.Bold
                                 color: Theme.textPrimary
+                                elide: Text.ElideRight
                             }
 
                             // Technology Badge
@@ -87,11 +93,31 @@ Item {
                                 }
                             }
 
+                            Item { Layout.fillWidth: true }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingSm
+
+                            Text {
+                                text: {
+                                    if (bridge?.connecting ?? false) return "Connecting cellular data session (ppp0)...";
+                                    if (bridge?.connected ?? false) return "Active cellular data plane linked to primary route (ppp0)";
+                                    return "Qualcomm MDM9600 cellular radio registered and standing by";
+                                }
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontSizeCaption
+                                color: (bridge?.connected ?? false) ? Theme.colorSuccess : Theme.textSecondary
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+
                             // IP Address Pill (if connected)
                             Rectangle {
                                 visible: (bridge?.connected ?? false) && (bridge?.ipAddress && bridge.ipAddress.length > 0)
-                                height: 20
-                                width: ipText.implicitWidth + 12
+                                height: 18
+                                width: ipText.implicitWidth + 10
                                 radius: Theme.radiusSm
                                 color: Qt.rgba(0, 240, 255, 0.12)
                                 border.color: Qt.rgba(0, 240, 255, 0.4)
@@ -108,17 +134,6 @@ Item {
                                 }
                             }
                         }
-
-                        Text {
-                            text: {
-                                if (bridge?.connecting ?? false) return "Connecting cellular data session (ppp0)...";
-                                if (bridge?.connected ?? false) return "Active cellular data plane linked to primary route (ppp0)";
-                                return "Qualcomm MDM9600 cellular radio registered and standing by";
-                            }
-                            font.family: Theme.fontSans
-                            font.pixelSize: Theme.fontSizeCaption
-                            color: (bridge?.connected ?? false) ? Theme.colorSuccess : Theme.textSecondary
-                        }
                     }
 
                     // Primary 1-Click Connect / Disconnect Button
@@ -131,8 +146,8 @@ Item {
                         variant: (bridge?.connected ?? false) ? "danger" : "primary"
                         iconGlyph: (bridge?.connected ?? false) ? "⏹" : "▶"
                         loading: bridge?.connecting ?? false
-                        implicitWidth: 168
-                        implicitHeight: 46
+                        implicitWidth: 142
+                        implicitHeight: 42
                         onClicked: {
                             if (typeof bridge !== "undefined" && bridge) {
                                 if (bridge.connected) {
@@ -152,20 +167,20 @@ Item {
             GridLayout {
                 Layout.fillWidth: true
                 columns: 2
-                rowSpacing: Theme.spacingLg
-                columnSpacing: Theme.spacingLg
+                rowSpacing: Theme.spacingMd
+                columnSpacing: Theme.spacingMd
 
                 // -----------------------------------------------------------
                 // CARD 1: CELLULAR SIGNAL & RF QUALITY
                 // -----------------------------------------------------------
                 Card {
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
+                    Layout.alignment: Qt.AlignTop
                     title: "Cellular RF Telemetry"
                     subtitle: "Qualcomm MDM9600 Transceiver Quality"
 
                     ColumnLayout {
-                        anchors.fill: parent
+                        Layout.fillWidth: true
                         spacing: Theme.spacingMd
 
                         // Big Signal Meter Display
@@ -216,7 +231,7 @@ Item {
 
                             ColumnLayout {
                                 spacing: 2
-                                Text { text: "SESSION UPTIME"; font.pixelSize: Theme.fontSizeSmall; font.family: Theme.fontMono; color: Theme.textMuted }
+                                Text { text: "UPTIME"; font.pixelSize: Theme.fontSizeSmall; font.family: Theme.fontMono; color: Theme.textMuted }
                                 Text {
                                     text: Theme.durationString(bridge?.sessionDuration ?? 0)
                                     font.family: Theme.fontMono
@@ -228,7 +243,7 @@ Item {
 
                             ColumnLayout {
                                 spacing: 2
-                                Text { text: "CARRIER GATEWAY (PEER IP)"; font.pixelSize: Theme.fontSizeSmall; font.family: Theme.fontMono; color: Theme.textMuted }
+                                Text { text: "PEER GATEWAY"; font.pixelSize: Theme.fontSizeSmall; font.family: Theme.fontMono; color: Theme.textMuted }
                                 Text {
                                     text: (bridge?.peerIp && bridge.peerIp.length > 0) ? bridge.peerIp : "—"
                                     font.family: Theme.fontMono
@@ -240,7 +255,7 @@ Item {
 
                             ColumnLayout {
                                 spacing: 2
-                                Text { text: "PRIMARY DNS SERVER"; font.pixelSize: Theme.fontSizeSmall; font.family: Theme.fontMono; color: Theme.textMuted }
+                                Text { text: "PRIMARY DNS"; font.pixelSize: Theme.fontSizeSmall; font.family: Theme.fontMono; color: Theme.textMuted }
                                 Text {
                                     text: (bridge?.dnsServers && bridge.dnsServers.length > 0) ? bridge.dnsServers[0] : "—"
                                     font.family: Theme.fontMono
@@ -251,7 +266,7 @@ Item {
 
                             ColumnLayout {
                                 spacing: 2
-                                Text { text: "SECONDARY DNS SERVER"; font.pixelSize: Theme.fontSizeSmall; font.family: Theme.fontMono; color: Theme.textMuted }
+                                Text { text: "SECONDARY DNS"; font.pixelSize: Theme.fontSizeSmall; font.family: Theme.fontMono; color: Theme.textMuted }
                                 Text {
                                     text: (bridge?.dnsServers && bridge.dnsServers.length > 1) ? bridge.dnsServers[1] : "—"
                                     font.family: Theme.fontMono
@@ -264,46 +279,40 @@ Item {
                 }
 
                 // -----------------------------------------------------------
-                // CARD 2: REAL-TIME THROUGHPUT & DATA METER
+                // CARD 2: REAL-TIME TRAFFIC THROUGHPUT
                 // -----------------------------------------------------------
                 Card {
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
+                    Layout.alignment: Qt.AlignTop
                     title: "Live Bandwidth & Throughput"
-                    subtitle: "Real-time packet speedometers and historical pulse"
+                    subtitle: "Real-time packet speedometers"
 
                     ColumnLayout {
-                        anchors.fill: parent
+                        Layout.fillWidth: true
                         spacing: Theme.spacingSm
 
-                        // Dual Bandwidth Pulse Visualizers
-                        RowLayout {
+                        // Download Visualizer
+                        BandwidthGraph {
                             Layout.fillWidth: true
-                            spacing: Theme.spacingMd
+                            title: "Download"
+                            iconGlyph: "↓"
+                            barColor: Theme.colorSuccess
+                            history: bridge?.trafficHistoryRx ?? []
+                            currentRateStr: Theme.formatRate(bridge?.rxRate ?? 0.0)
+                            peakRateStr: Theme.formatRate(bridge?.peakRxRate ?? 0.0)
+                            totalBytesStr: Theme.formatBytes(bridge?.rxBytes ?? 0)
+                        }
 
-                            // Download Visualizer
-                            BandwidthGraph {
-                                Layout.fillWidth: true
-                                title: "DOWNLOAD SPEED"
-                                iconGlyph: "↓"
-                                barColor: Theme.colorSuccess
-                                history: bridge?.trafficHistoryRx ?? []
-                                currentRateStr: Theme.formatRate(bridge?.rxRate ?? 0.0)
-                                peakRateStr: Theme.formatRate(bridge?.peakRxRate ?? 0.0)
-                                totalBytesStr: Theme.formatBytes(bridge?.rxBytes ?? 0)
-                            }
-
-                            // Upload Visualizer
-                            BandwidthGraph {
-                                Layout.fillWidth: true
-                                title: "UPLOAD SPEED"
-                                iconGlyph: "↑"
-                                barColor: Theme.colorCyan
-                                history: bridge?.trafficHistoryTx ?? []
-                                currentRateStr: Theme.formatRate(bridge?.txRate ?? 0.0)
-                                peakRateStr: Theme.formatRate(bridge?.peakTxRate ?? 0.0)
-                                totalBytesStr: Theme.formatBytes(bridge?.txBytes ?? 0)
-                            }
+                        // Upload Visualizer
+                        BandwidthGraph {
+                            Layout.fillWidth: true
+                            title: "Upload"
+                            iconGlyph: "↑"
+                            barColor: Theme.colorCyan
+                            history: bridge?.trafficHistoryTx ?? []
+                            currentRateStr: Theme.formatRate(bridge?.txRate ?? 0.0)
+                            peakRateStr: Theme.formatRate(bridge?.peakTxRate ?? 0.0)
+                            totalBytesStr: Theme.formatBytes(bridge?.txBytes ?? 0)
                         }
 
                         Rectangle {
@@ -342,11 +351,12 @@ Item {
                 // -----------------------------------------------------------
                 Card {
                     Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
                     title: "Wi-Fi Hotspot Co-Processor"
                     subtitle: "Broadcom 802.11b/g/n Subsystem"
 
                     RowLayout {
-                        anchors.fill: parent
+                        Layout.fillWidth: true
                         spacing: Theme.spacingLg
 
                         ColumnLayout {
@@ -387,16 +397,18 @@ Item {
                 // -----------------------------------------------------------
                 Card {
                     Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
                     title: "System Architecture & IPC Binding"
                     subtitle: "Process communication and peripheral endpoints"
 
                     ColumnLayout {
-                        anchors.fill: parent
+                        Layout.fillWidth: true
                         spacing: Theme.spacingSm
 
                         RowLayout {
                             Layout.fillWidth: true
                             Text { text: "DAEMON STATUS:"; font.family: Theme.fontMono; font.pixelSize: Theme.fontSizeSmall; color: Theme.textMuted }
+                            Item { Layout.fillWidth: true }
                             Text {
                                 text: (bridge?.isDaemonRunning ?? false) ? "ONLINE (Active System Daemon)" : "DIRECT SERIAL FALLBACK"
                                 font.family: Theme.fontMono
@@ -409,6 +421,7 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             Text { text: "IPC TRANSPORT:"; font.family: Theme.fontMono; font.pixelSize: Theme.fontSizeSmall; color: Theme.textMuted }
+                            Item { Layout.fillWidth: true }
                             Text {
                                 text: (bridge?.transportMode ? bridge.transportMode.toUpperCase() : "SOCKET")
                                 font.family: Theme.fontMono
@@ -421,6 +434,7 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             Text { text: "HARDWARE TARGET:"; font.family: Theme.fontMono; font.pixelSize: Theme.fontSizeSmall; color: Theme.textMuted }
+                            Item { Layout.fillWidth: true }
                             Text {
                                 text: "Qualcomm MDM9600 (Aleka UV310)"
                                 font.family: Theme.fontMono

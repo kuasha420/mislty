@@ -29,6 +29,9 @@ QtObject {
     readonly property color colorWarning: "#ffb300"    // Warning / Medium Signal
     readonly property color colorDanger: "#ff3366"     // Error / Disconnected / Weak
     readonly property color colorInfo: "#00b4d8"
+    readonly property color colorCrimson: "#ff3366"
+    readonly property color colorEmerald: "#00e676"
+    readonly property color colorCyanMuted: Qt.rgba(0, 240, 255, 0.35)
 
     // Foreground / Text tokens
     readonly property color textPrimary: "#f0f6fc"
