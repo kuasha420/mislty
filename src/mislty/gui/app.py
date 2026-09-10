@@ -744,15 +744,20 @@ class MisltyBridge(QObject):
         # Wi-Fi Relay details
         relay = stat.get("wifi_relay", {})
         self.relayActive = bool(relay.get("active", False))
-        if relay.get("interface"):
-            self.relayInterface = relay.get("interface")
-        if relay.get("ssid"):
-            self.relaySsid = relay.get("ssid")
-        if relay.get("ip_address"):
-            self.relayIpAddress = relay.get("ip_address")
-        self.relayUptime = int(relay.get("uptime_seconds", 0))
-        if relay.get("wan_iface"):
-            self.relayWanInterface = relay.get("wan_iface")
+        if self.relayActive:
+            if relay.get("interface"):
+                self.relayInterface = relay.get("interface")
+            if relay.get("ssid"):
+                self.relaySsid = relay.get("ssid")
+            if relay.get("ip_address"):
+                self.relayIpAddress = relay.get("ip_address")
+            self.relayUptime = int(relay.get("uptime_seconds", 0))
+            if relay.get("wan_iface"):
+                self.relayWanInterface = relay.get("wan_iface")
+            if "clients" in relay:
+                self.relayClients = relay.get("clients", [])
+        else:
+            self.relayClients = []
 
     # -----------------------------------------------------------------------
     # Public Invokable Slots
@@ -834,6 +839,7 @@ class MisltyBridge(QObject):
             try:
                 self._client.stop_hotspot_relay()
                 self.relayActive = False
+                self.relayClients = []
                 self.relayError = ""
                 self.statusMessage = "Hotspot Relay stopped."
             except Exception as exc:

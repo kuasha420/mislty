@@ -207,3 +207,43 @@ def test_wifi_relay_deck_actions_and_properties(qapp, mock_wifi_client):
     time.sleep(0.05)
     assert bridge.relayBusy is False
     assert bridge.relayActive is False
+    assert bridge.relayClients == []
+
+
+def test_gui_wifi_relay_clients_reactive_telemetry(qapp, mock_wifi_client):
+    """Verify that _update_status_data dynamically updates and drops relay clients."""
+    bridge = MisltyBridge(client=mock_wifi_client)
+
+    # Active relay status with 1 client
+    stat_with_client = {
+        "daemon": {"is_running": True, "connected": True},
+        "cellular_ppp": {"connected": True},
+        "wifi": {},
+        "wifi_relay": {
+            "active": True,
+            "interface": "wlan1",
+            "ssid": "MisLTy 4G Share",
+            "clients": [{"mac": "11:22:33:44:55:66", "ip": "10.42.0.101"}],
+        },
+    }
+    bridge._update_status_data(stat_with_client)
+    assert bridge.relayActive is True
+    assert len(bridge.relayClients) == 1
+    assert bridge.relayClients[0]["mac"] == "11:22:33:44:55:66"
+
+    # Status update where station disconnected
+    stat_dropped_client = {
+        "daemon": {"is_running": True, "connected": True},
+        "cellular_ppp": {"connected": True},
+        "wifi": {},
+        "wifi_relay": {
+            "active": True,
+            "interface": "wlan1",
+            "ssid": "MisLTy 4G Share",
+            "clients": [],
+        },
+    }
+    bridge._update_status_data(stat_dropped_client)
+    assert bridge.relayActive is True
+    assert bridge.relayClients == []
+

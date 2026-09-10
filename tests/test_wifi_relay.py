@@ -12,6 +12,7 @@ Unit tests for the MisLTy Wi-Fi Hotspot Relay supervisor (Issue #22):
 
 from pathlib import Path
 import subprocess
+import time
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -296,3 +297,74 @@ def test_get_connected_clients_parsing():
     assert c.rx_bytes == 12345
     assert c.tx_bytes == 67890
     assert c.inactive_ms == 350
+
+
+def test_get_connected_clients_excludes_dropped_and_cleans_stale_arp():
+    """Verify that when a client disconnects from AP, it is immediately excluded from clients."""
+    mgr = WifiRelayManager()
+    mgr._status = RelayStatus(active=True, interface="wlan1")
+
+    # iw station dump returns empty stdout (meaning 0 stations associated)
+    mock_run = MagicMock(return_value=subprocess.CompletedProcess(
+        args=["iw", "dev", "wlan1", "station", "dump"],
+        returncode=0,
+        stdout="",
+        stderr="",
+    ))
+
+    # /proc/net/arp still holds a stale entry for the dropped device
+    stale_arp = {"dc:44:60:49:5c:41": "10.42.0.145"}
+
+    with patch("subprocess.run", mock_run), \
+         patch.object(mgr, "_get_arp_table", return_value=stale_arp):
+        clients = mgr.get_connected_clients()
+
+    # Dropped client MUST NOT be included!
+    assert clients == []
+
+    # Verify that ip neigh del was called to purge the stale ARP entry from the kernel
+    del_calls = [
+        call for call in mock_run.call_args_list
+        if call.args and call.args[0] == ["ip", "neigh", "del", "10.42.0.145", "dev", "wlan1"]
+    ]
+    assert len(del_calls) == 1
+
+
+def test_get_connected_clients_fallback_filters_stale():
+    """Verify fallback to ip neigh nud reachable when iw is unavailable."""
+    mgr = WifiRelayManager()
+    mgr._status = RelayStatus(active=True, interface="wlan1")
+
+    # iw returns returncode 1 (not supported)
+    def fake_subprocess_run(args, **kwargs):
+        if args[:4] == ["iw", "dev", "wlan1", "station"]:
+            return subprocess.CompletedProcess(args=args, returncode=1, stdout="", stderr="Not supported")
+        elif args[:6] == ["ip", "neigh", "show", "dev", "wlan1", "nud"]:
+            # Only reachable neighbors returned
+            output = "10.42.0.200 dev wlan1 lladdr aa:bb:cc:11:22:33 REACHABLE\n"
+            return subprocess.CompletedProcess(args=args, returncode=0, stdout=output, stderr="")
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="", stderr="")
+
+    with patch("subprocess.run", side_effect=fake_subprocess_run), \
+         patch.object(mgr, "_get_arp_table", return_value={"aa:bb:cc:11:22:33": "10.42.0.200"}):
+        clients = mgr.get_connected_clients()
+
+    assert len(clients) == 1
+    assert clients[0].mac == "aa:bb:cc:11:22:33"
+    assert clients[0].ip == "10.42.0.200"
+
+
+def test_get_status_includes_clients():
+    """Verify get_status returns updated clients inventory."""
+    mgr = WifiRelayManager()
+    mgr._status = RelayStatus(active=True, interface="wlan1", start_time=time.time() - 10)
+
+    fake_client = RelayClient(mac="aa:bb:cc:dd:ee:ff", ip="10.42.0.10", signal_dbm=-50)
+    with patch.object(mgr, "get_connected_clients", return_value=[fake_client]):
+        stat = mgr.get_status()
+
+    assert stat.client_count == 1
+    assert len(stat.clients) == 1
+    assert stat.clients[0]["mac"] == "aa:bb:cc:dd:ee:ff"
+    assert stat.clients[0]["ip"] == "10.42.0.10"
+
