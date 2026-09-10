@@ -382,17 +382,24 @@ class WifiRelayManager:
             raise RuntimeError(f"Failed to create NetworkManager hotspot connection: {err}")
 
         # 3. Bring up the hotspot connection
-        res_up = subprocess.run(
-            ["nmcli", "connection", "up", self.CON_NAME],
-            capture_output=True,
-            text=True,
-            timeout=15.0,
-        )
-        if res_up.returncode != 0:
-            err = res_up.stderr.strip() or res_up.stdout.strip()
-            # Clean up created connection
+        try:
+            res_up = subprocess.run(
+                ["nmcli", "connection", "up", self.CON_NAME],
+                capture_output=True,
+                text=True,
+                timeout=12.0,
+            )
+            if res_up.returncode != 0:
+                err = res_up.stderr.strip() or res_up.stdout.strip()
+                self._cleanup_nm_connection()
+                raise RuntimeError(f"Failed to activate hotspot on {interface}: {err}")
+        except subprocess.TimeoutExpired:
             self._cleanup_nm_connection()
-            raise RuntimeError(f"Failed to activate hotspot on {interface}: {err}")
+            hint = " (Note: 5 GHz softAP often fails due to regulatory 'no-IR' rules; try 2.4 GHz Ch 11 or 6)" if band == "a" else ""
+            raise RuntimeError(f"Hotspot activation timed out on {interface}{hint}.")
+        except Exception:
+            self._cleanup_nm_connection()
+            raise
 
         # 4. Wait briefly and resolve assigned local IP
         ip_addr = self._resolve_interface_ip(interface)

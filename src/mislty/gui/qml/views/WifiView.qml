@@ -454,11 +454,13 @@ Item {
                         Item { Layout.fillWidth: true }
 
                         FelineButton {
-                            text: "Scan Adapters"
+                            text: (bridge?.isScanningDevices ?? false) ? "Scanning..." : "Scan Adapters"
                             variant: "outline"
                             iconGlyph: "🔍"
+                            loading: bridge?.isScanningDevices ?? false
+                            disabled: bridge?.isScanningDevices ?? false
                             implicitHeight: 28
-                            implicitWidth: 125
+                            implicitWidth: 135
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     bridge.refreshWlanDevices();
@@ -502,7 +504,7 @@ Item {
                                 ComboBox {
                                     id: relayDeviceBox
                                     anchors.fill: parent
-                                    enabled: !(bridge?.relayActive ?? false)
+                                    enabled: !(bridge?.relayActive ?? false) && !(bridge?.relayBusy ?? false)
                                     model: {
                                         var devs = bridge?.wlanDevices ?? [];
                                         var labels = [];
@@ -561,7 +563,7 @@ Item {
                                     id: relaySsidInput
                                     anchors.fill: parent
                                     anchors.margins: Theme.spacingSm
-                                    enabled: !(bridge?.relayActive ?? false)
+                                    enabled: !(bridge?.relayActive ?? false) && !(bridge?.relayBusy ?? false)
                                     text: (bridge?.relaySsid && bridge.relaySsid.length > 0) ? bridge.relaySsid : "MisLTy 4G Share"
                                     font.family: Theme.fontMono
                                     font.pixelSize: Theme.fontSizeBody
@@ -599,7 +601,7 @@ Item {
                                     TextInput {
                                         id: relayPassInput
                                         Layout.fillWidth: true
-                                        enabled: !(bridge?.relayActive ?? false)
+                                        enabled: !(bridge?.relayActive ?? false) && !(bridge?.relayBusy ?? false)
                                         text: "mislty420"
                                         echoMode: root.showRelayPassword ? TextInput.Normal : TextInput.Password
                                         font.family: Theme.fontMono
@@ -644,8 +646,8 @@ Item {
                                 ComboBox {
                                     id: relayChannelBox
                                     anchors.fill: parent
-                                    enabled: !(bridge?.relayActive ?? false)
-                                    model: ["Ch 11 (2.4 GHz)", "Ch 6 (2.4 GHz)", "Ch 1 (2.4 GHz)", "Ch 36 (5 GHz)", "Ch 149 (5 GHz)"]
+                                    enabled: !(bridge?.relayActive ?? false) && !(bridge?.relayBusy ?? false)
+                                    model: ["Ch 11 (2.4 GHz) [Recommended]", "Ch 6 (2.4 GHz) [Recommended]", "Ch 1 (2.4 GHz) [Recommended]", "Ch 36 (5 GHz) [Requires DFS/Reg]", "Ch 149 (5 GHz) [Requires DFS/Reg]"]
                                     currentIndex: 0
                                     background: Rectangle { color: "transparent" }
                                     contentItem: TextEdit {
@@ -663,18 +665,73 @@ Item {
                         }
                     }
 
+                    // Inline Error / Diagnostic Alert Banner
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 34
+                        radius: Theme.radiusSm
+                        color: "#2a1418"
+                        border.color: Theme.colorDanger
+                        border.width: 1
+                        visible: (bridge?.relayError && bridge.relayError.length > 0) ? true : false
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: Theme.spacingMd
+                            anchors.rightMargin: Theme.spacingMd
+                            spacing: Theme.spacingSm
+
+                            Text {
+                                text: "⚠️"
+                                font.pixelSize: 13
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: bridge?.relayError ?? ""
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: "#ff8c8c"
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                text: "✕ Dismiss"
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontSizeCaption
+                                font.weight: Font.DemiBold
+                                color: Theme.colorCyan
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (bridge) bridge.relayError = "";
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Action Controls & Status Bar
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.spacingMd
 
                         FelineButton {
-                            text: (bridge?.relayActive ?? false) ? "Stop Hotspot Relay" : "Start Hotspot Relay"
+                            id: startStopRelayBtn
+                            text: {
+                                if (bridge?.relayBusy ?? false) {
+                                    return (bridge?.relayActive ?? false) ? "Stopping Relay..." : "Starting Hotspot Relay...";
+                                }
+                                return (bridge?.relayActive ?? false) ? "Stop Hotspot Relay" : "Start Hotspot Relay";
+                            }
                             variant: (bridge?.relayActive ?? false) ? "danger" : "primary"
                             iconGlyph: (bridge?.relayActive ?? false) ? "🛑" : "📡"
-                            implicitWidth: 180
+                            loading: bridge?.relayBusy ?? false
+                            implicitWidth: 195
                             implicitHeight: 38
                             enabled: {
+                                if (bridge?.relayBusy ?? false) return false;
                                 if (bridge?.relayActive ?? false) return true;
                                 var devs = bridge?.wlanDevices ?? [];
                                 if (devs.length > relayDeviceBox.currentIndex) {
@@ -715,10 +772,18 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             text: {
+                                var devs = bridge?.wlanDevices ?? [];
+                                if (bridge?.relayBusy ?? false) {
+                                    return (bridge?.relayActive ?? false)
+                                        ? "⏳ Deactivating Hotspot Relay and cleaning up forwarding rules..."
+                                        : "⏳ Provisioning Hotspot Relay on " + (devs.length > relayDeviceBox.currentIndex ? devs[relayDeviceBox.currentIndex].iface : "adapter") + "... Configuring softAP and Table 420 policy routes.";
+                                }
+                                if (bridge?.relayError && bridge.relayError.length > 0) {
+                                    return "❌ Error: " + bridge.relayError;
+                                }
                                 if (bridge?.relayActive ?? false) {
                                     return "● Broadcasting on " + (bridge?.relayInterface ?? "wlan1") + " (" + (bridge?.relaySsid ?? "") + ") • Gateway: " + (bridge?.relayIpAddress ?? "10.42.0.1") + " • Upstream WAN: " + (bridge?.relayWanInterface ?? "ppp0") + " (LTE)";
                                 }
-                                var devs = bridge?.wlanDevices ?? [];
                                 if (devs.length > relayDeviceBox.currentIndex) {
                                     var sel = devs[relayDeviceBox.currentIndex];
                                     if (sel.is_in_use || sel.is_primary) {
@@ -733,6 +798,8 @@ Item {
                             font.family: Theme.fontMono
                             font.pixelSize: Theme.fontSizeSmall
                             color: {
+                                if (bridge?.relayBusy ?? false) return Theme.colorCyan;
+                                if (bridge?.relayError && bridge.relayError.length > 0) return Theme.colorDanger;
                                 if (bridge?.relayActive ?? false) return Theme.colorSuccess;
                                 var devs = bridge?.wlanDevices ?? [];
                                 if (devs.length > relayDeviceBox.currentIndex) {

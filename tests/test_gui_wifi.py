@@ -173,8 +173,10 @@ def test_wifi_relay_deck_actions_and_properties(qapp, mock_wifi_client):
     bridge = MisltyBridge(client=mock_wifi_client)
 
     # 1. Device enumeration
+    assert bridge.isScanningDevices is False
     bridge.refreshWlanDevices()
     time.sleep(0.05)
+    assert bridge.isScanningDevices is False
     assert len(bridge.wlanDevices) == 2
     assert bridge.wlanDevices[0]["iface"] == "wlan0"
     assert bridge.wlanDevices[0]["is_primary"] is True
@@ -182,12 +184,16 @@ def test_wifi_relay_deck_actions_and_properties(qapp, mock_wifi_client):
     assert bridge.wlanDevices[1]["is_candidate"] is True
 
     # 2. Start relay
+    assert bridge.relayBusy is False
+    assert bridge.relayError == ""
     bridge.startHotspotRelay("wlan1", "MisLTy 4G Share", "mislty420", "bg", 11, "ppp0")
     time.sleep(0.05)
+    assert bridge.relayBusy is False
     assert bridge.relayActive is True
     assert bridge.relayInterface == "wlan1"
     assert bridge.relaySsid == "MisLTy 4G Share"
     assert bridge.relayIpAddress == "10.42.0.1"
+    assert bridge.relayError == ""
 
     # 3. Query relay clients
     bridge.getHotspotRelayClients()
@@ -199,4 +205,5 @@ def test_wifi_relay_deck_actions_and_properties(qapp, mock_wifi_client):
     # 4. Stop relay
     bridge.stopHotspotRelay()
     time.sleep(0.05)
+    assert bridge.relayBusy is False
     assert bridge.relayActive is False

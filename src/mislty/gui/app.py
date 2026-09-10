@@ -88,6 +88,9 @@ class MisltyBridge(QObject):
     relayUptimeChanged = Signal(int)
     relayClientsChanged = Signal(list)
     relayWanInterfaceChanged = Signal(str)
+    relayBusyChanged = Signal(bool)
+    relayErrorChanged = Signal(str)
+    isScanningDevicesChanged = Signal(bool)
 
     def __init__(
         self,
@@ -140,6 +143,9 @@ class MisltyBridge(QObject):
         self._relay_uptime: int = 0
         self._relay_clients: List[Dict[str, Any]] = []
         self._relay_wan_interface: str = "ppp0"
+        self._relay_busy: bool = False
+        self._relay_error: str = ""
+        self._is_scanning_devices: bool = False
 
         # QC-Webs Embedded Client and Mode Switcher
         from mislty.net.qcwebs_client import QcWebsClient, SmartModeSwitcher
@@ -607,6 +613,36 @@ class MisltyBridge(QObject):
             self._relay_wan_interface = value
             self.relayWanInterfaceChanged.emit(value)
 
+    @Property(bool, notify=relayBusyChanged)
+    def relayBusy(self) -> bool:
+        return self._relay_busy
+
+    @relayBusy.setter
+    def relayBusy(self, value: bool) -> None:
+        if self._relay_busy != value:
+            self._relay_busy = value
+            self.relayBusyChanged.emit(value)
+
+    @Property(str, notify=relayErrorChanged)
+    def relayError(self) -> str:
+        return self._relay_error
+
+    @relayError.setter
+    def relayError(self, value: str) -> None:
+        if self._relay_error != value:
+            self._relay_error = value
+            self.relayErrorChanged.emit(value)
+
+    @Property(bool, notify=isScanningDevicesChanged)
+    def isScanningDevices(self) -> bool:
+        return self._is_scanning_devices
+
+    @isScanningDevices.setter
+    def isScanningDevices(self, value: bool) -> None:
+        if self._is_scanning_devices != value:
+            self._is_scanning_devices = value
+            self.isScanningDevicesChanged.emit(value)
+
     def _get_aux_netns(self) -> Optional[str]:
         """Detect if auxiliary Wi-Fi interface is configured in an isolated network namespace."""
         from mislty.core.port_resolver import PortResolver
@@ -725,12 +761,16 @@ class MisltyBridge(QObject):
     @Slot(result=list)
     def refreshWlanDevices(self) -> list:
         """Enumerate host WLAN devices and update wlanDevices property."""
+        self.isScanningDevices = True
+
         def _worker():
             try:
                 devs = self._client.list_wlan_devices()
                 self.wlanDevices = devs
             except Exception as exc:
                 logger.debug("Failed to list WLAN devices: %s", exc)
+            finally:
+                self.isScanningDevices = False
 
         threading.Thread(target=_worker, daemon=True).start()
         return self._wlan_devices
@@ -746,9 +786,12 @@ class MisltyBridge(QObject):
         wan_iface: str = "ppp0",
     ) -> bool:
         """Start assist softAP and route via cellular modem WAN."""
+        self.relayBusy = True
+        self.relayError = ""
+        self.statusMessage = f"Starting Hotspot Relay on {interface}..."
+
         def _worker():
             try:
-                self.statusMessage = f"Starting Hotspot Relay on {interface}..."
                 res = self._client.start_hotspot_relay(
                     interface=interface,
                     ssid=ssid,
@@ -763,11 +806,19 @@ class MisltyBridge(QObject):
                     self.relayInterface = interface
                     self.relaySsid = ssid
                     self.relayIpAddress = res.get("ip_address", "10.42.0.1")
+                    self.relayError = ""
                 else:
-                    self.statusMessage = f"Failed to start Hotspot Relay: {res.get('error', 'Error')}"
+                    err = res.get("error", "Activation failed")
+                    self.relayActive = False
+                    self.relayError = err
+                    self.statusMessage = f"Failed to start Hotspot Relay: {err}"
             except Exception as exc:
                 logger.error("startHotspotRelay error: %s", exc)
+                self.relayActive = False
+                self.relayError = str(exc)
                 self.statusMessage = f"Relay error: {exc}"
+            finally:
+                self.relayBusy = False
 
         threading.Thread(target=_worker, daemon=True).start()
         return True
@@ -775,15 +826,22 @@ class MisltyBridge(QObject):
     @Slot(result=bool)
     def stopHotspotRelay(self) -> bool:
         """Deactivate assist hotspot and restore clean network routing."""
+        self.relayBusy = True
+        self.relayError = ""
+        self.statusMessage = "Stopping Hotspot Relay..."
+
         def _worker():
             try:
-                self.statusMessage = "Stopping Hotspot Relay..."
                 self._client.stop_hotspot_relay()
                 self.relayActive = False
+                self.relayError = ""
                 self.statusMessage = "Hotspot Relay stopped."
             except Exception as exc:
                 logger.error("stopHotspotRelay error: %s", exc)
+                self.relayError = str(exc)
                 self.statusMessage = f"Stop relay error: {exc}"
+            finally:
+                self.relayBusy = False
 
         threading.Thread(target=_worker, daemon=True).start()
         return True
