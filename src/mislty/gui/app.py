@@ -1031,8 +1031,17 @@ def create_app(
     engine.rootContext().setContextProperty("bridge", bridge)
 
     engine.load(QUrl.fromLocalFile(str(main_qml)))
-    if not engine.rootObjects():
+    root_objects = engine.rootObjects()
+    if not root_objects:
         raise RuntimeError("Failed to load QML root object from Main.qml")
+
+    try:
+        from mislty.gui.tray import MisltyTray
+        tray = MisltyTray(bridge=bridge, app=app, window=root_objects[0])
+        tray.show()
+        bridge._tray = tray
+    except Exception as exc:
+        logger.warning("Could not initialize system tray: %s", exc)
 
     return app, engine, bridge
 

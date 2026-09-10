@@ -148,7 +148,12 @@ class MisltyClient:
     # RPC Dispatch Helpers
     # -----------------------------------------------------------------------
 
-    def _call_socket(self, method: str, params: Optional[Union[Dict[str, Any], List[Any]]] = None) -> Any:
+    def _call_socket(
+        self,
+        method: str,
+        params: Optional[Union[Dict[str, Any], List[Any]]] = None,
+        timeout: Optional[float] = None,
+    ) -> Any:
         """Dispatch JSON-RPC call over active Unix domain socket."""
         if not self._socket_conn:
             if not self._try_connect_socket():
@@ -161,6 +166,7 @@ class MisltyClient:
 
         payload = (json.dumps(req) + "\n").encode("utf-8")
         try:
+            self._socket_conn.settimeout(timeout if timeout is not None else 10.0)
             self._socket_conn.sendall(payload)
             buffer = ""
             while "\n" not in buffer:
@@ -318,7 +324,7 @@ class MisltyClient:
     def connect(self, apn: str = "internet", default_route: bool = True, timeout: float = 20.0) -> Dict[str, Any]:
         """Establish cellular data connection."""
         if self.active_transport == self.TRANSPORT_SOCKET:
-            return self._call_socket("connect", {"apn": apn, "default_route": default_route, "timeout": timeout})
+            return self._call_socket("connect", {"apn": apn, "default_route": default_route, "timeout": timeout}, timeout=timeout + 5.0)
         elif self.active_transport == self.TRANSPORT_DBUS:
             ok = self._call_dbus("Connect", apn, default_route)
             return {"success": ok}

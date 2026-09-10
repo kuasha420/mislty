@@ -95,6 +95,23 @@ if [ -f "${SCRIPT_DIR}/config/systemd/misltyd.service" ]; then
     chmod 0644 /etc/systemd/user/misltyd.service
 fi
 
+# 7. Desktop Application Launcher & Icon
+echo -e "➔ Installing desktop application launcher and icon..."
+if [ -f "${SCRIPT_DIR}/deploy/mislty.desktop" ]; then
+    mkdir -p /usr/share/applications
+    cp "${SCRIPT_DIR}/deploy/mislty.desktop" /usr/share/applications/mislty.desktop
+    chmod 0644 /usr/share/applications/mislty.desktop
+fi
+if [ -f "${SCRIPT_DIR}/deploy/icons/mislty.svg" ]; then
+    mkdir -p /usr/share/icons/hicolor/scalable/apps
+    cp "${SCRIPT_DIR}/deploy/icons/mislty.svg" /usr/share/icons/hicolor/scalable/apps/mislty.svg
+    chmod 0644 /usr/share/icons/hicolor/scalable/apps/mislty.svg
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+        gtk-update-icon-cache -q /usr/share/icons/hicolor || true
+    fi
+fi
+
+
 END_TIME="$(date +%s%N)"
 ELAPSED_MS="$(( (END_TIME - START_TIME) / 1000000 ))"
 

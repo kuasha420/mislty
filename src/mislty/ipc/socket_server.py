@@ -169,7 +169,10 @@ class JsonRpcSocketServer:
 
                     response_bytes = self._process_request(line)
                     if response_bytes:
-                        client_sock.sendall(response_bytes)
+                        try:
+                            client_sock.sendall(response_bytes)
+                        except (BrokenPipeError, ConnectionResetError, OSError):
+                            break
         finally:
             try:
                 client_sock.close()
