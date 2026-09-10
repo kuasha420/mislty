@@ -122,7 +122,7 @@ def handle_restore_default_route(gw: str, dev: str, metric: int = 600) -> Dict[s
 
 
 def handle_enable_nat(wan_iface: str, lan_iface: str) -> Dict[str, Any]:
-    """Enable IP forwarding and NAT masquerade between WAN and LAN interfaces."""
+    """Enable IP forwarding, NAT masquerade, and table 420 policy routing between WAN and LAN."""
     w_iface = validate_interface(wan_iface)
     l_iface = validate_interface(lan_iface)
 
@@ -139,21 +139,39 @@ def handle_enable_nat(wan_iface: str, lan_iface: str) -> Dict[str, Any]:
         if add_res.returncode != 0:
             raise HelperError(f"iptables nat rule failed: {add_res.stderr.strip()}")
 
-    # 3. Add forward rules
-    execute_cmd(["iptables", "-A", "FORWARD", "-i", l_iface, "-o", w_iface, "-j", "ACCEPT"])
-    execute_cmd(["iptables", "-A", "FORWARD", "-i", w_iface, "-o", l_iface, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"])
+    # 3. Add forward rules idempotently
+    chk_fwd1 = execute_cmd(["iptables", "-C", "FORWARD", "-i", l_iface, "-o", w_iface, "-j", "ACCEPT"])
+    if chk_fwd1.returncode != 0:
+        execute_cmd(["iptables", "-A", "FORWARD", "-i", l_iface, "-o", w_iface, "-j", "ACCEPT"])
+
+    chk_fwd2 = execute_cmd(["iptables", "-C", "FORWARD", "-i", w_iface, "-o", l_iface, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"])
+    if chk_fwd2.returncode != 0:
+        execute_cmd(["iptables", "-A", "FORWARD", "-i", w_iface, "-o", l_iface, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"])
+
+    # 4. Add table 420 policy routing so ingress packets from l_iface route via w_iface
+    rule_chk = execute_cmd(["ip", "rule", "show"])
+    if f"iif {l_iface} lookup 420" not in rule_chk.stdout:
+        execute_cmd(["ip", "rule", "add", "iif", l_iface, "table", "420"])
+    execute_cmd(["ip", "route", "replace", "default", "dev", w_iface, "table", "420"])
 
     return {"success": True, "action": "enable-nat", "wan": w_iface, "lan": l_iface}
 
 
 def handle_disable_nat(wan_iface: str, lan_iface: str) -> Dict[str, Any]:
-    """Remove NAT masquerade and forwarding rules."""
+    """Remove NAT masquerade, forwarding, and policy routing rules."""
     w_iface = validate_interface(wan_iface)
     l_iface = validate_interface(lan_iface)
 
     execute_cmd(["iptables", "-t", "nat", "-D", "POSTROUTING", "-o", w_iface, "-j", "MASQUERADE"])
     execute_cmd(["iptables", "-D", "FORWARD", "-i", l_iface, "-o", w_iface, "-j", "ACCEPT"])
     execute_cmd(["iptables", "-D", "FORWARD", "-i", w_iface, "-o", l_iface, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"])
+
+    # Clean up policy routing for l_iface
+    for _ in range(5):
+        del_rule = execute_cmd(["ip", "rule", "del", "iif", l_iface, "table", "420"])
+        if del_rule.returncode != 0:
+            break
+    execute_cmd(["ip", "route", "flush", "table", "420"])
 
     return {"success": True, "action": "disable-nat", "wan": w_iface, "lan": l_iface}
 

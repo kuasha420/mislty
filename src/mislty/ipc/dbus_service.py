@@ -237,6 +237,46 @@ class DbusService:
                     res = inner_self.dispatcher.dispatch("at", {"command": str(command)})
                     return json.dumps(res)
 
+                @dbus.service.method(DbusService.INTERFACE_NAME, out_signature="s")
+                def ListWlanDevices(inner_self) -> str:
+                    res = inner_self.dispatcher.dispatch("relay_devices")
+                    return json.dumps(res)
+
+                @dbus.service.method(DbusService.INTERFACE_NAME, in_signature="ssssis", out_signature="s")
+                def StartHotspotRelay(
+                    inner_self,
+                    interface: str,
+                    ssid: str,
+                    password: str,
+                    band: str,
+                    channel: int,
+                    wan_iface: str,
+                ) -> str:
+                    res = inner_self.dispatcher.dispatch("relay_start", {
+                        "interface": str(interface),
+                        "ssid": str(ssid),
+                        "password": str(password) if password else None,
+                        "band": str(band),
+                        "channel": int(channel),
+                        "wan_iface": str(wan_iface),
+                    })
+                    return json.dumps(res)
+
+                @dbus.service.method(DbusService.INTERFACE_NAME, out_signature="s")
+                def StopHotspotRelay(inner_self) -> str:
+                    res = inner_self.dispatcher.dispatch("relay_stop")
+                    return json.dumps(res)
+
+                @dbus.service.method(DbusService.INTERFACE_NAME, out_signature="s")
+                def GetHotspotRelayStatus(inner_self) -> str:
+                    res = inner_self.dispatcher.dispatch("relay_status")
+                    return json.dumps(res)
+
+                @dbus.service.method(DbusService.INTERFACE_NAME, out_signature="s")
+                def GetHotspotRelayClients(inner_self) -> str:
+                    res = inner_self.dispatcher.dispatch("relay_clients")
+                    return json.dumps(res)
+
                 @dbus.service.signal(DbusService.INTERFACE_NAME, signature="ii")
                 def SignalQualityChanged(inner_self, rssi: int, dbm: int) -> None:
                     pass

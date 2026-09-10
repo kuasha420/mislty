@@ -37,6 +37,7 @@ from mislty.ipc.dispatcher import IpcDispatcher
 from mislty.ipc.socket_server import JsonRpcSocketServer
 from mislty.net.ppp_controller import PppController
 from mislty.net.wifi_manager import WifiManager
+from mislty.net.wifi_relay import WifiRelayManager
 from mislty.storage.database import DatabaseManager
 from mislty.storage.metrics_store import MetricsStore, TelemetryRecord
 from mislty.storage.sms_store import SmsStore
@@ -84,6 +85,7 @@ class DaemonEngine:
         self.demuxer = UrcDemuxer()
         self.ppp = PppController()
         self.wifi = WifiManager()
+        self.wifi_relay = WifiRelayManager()
 
         self.ipc_dispatcher = IpcDispatcher(self)
         self.socket_server = JsonRpcSocketServer(self.ipc_dispatcher)
@@ -401,6 +403,12 @@ class DaemonEngine:
                 self._watchdog_thread.join(timeout=2.0)
                 self._watchdog_thread = None
 
+            if self.wifi_relay:
+                try:
+                    self.wifi_relay.stop_relay()
+                except Exception:
+                    pass
+
             self.disconnect_modem()
             self.db.close()
             logger.info("misltyd daemon engine stopped.")
@@ -419,6 +427,8 @@ class DaemonEngine:
                 except Exception:
                     pass
 
+            relay_stat = self.wifi_relay.get_status().as_dict()
+
             return {
                 "daemon": self.state.as_dict(),
                 "hardware": ports_dict,
@@ -428,6 +438,7 @@ class DaemonEngine:
                     "ssid": wifi_ssid,
                     "clients_count": clients_count,
                 },
+                "wifi_relay": relay_stat,
             }
 
     def connect_cellular(self, apn: str = "internet", default_route: bool = True, timeout: float = 20.0) -> bool:
@@ -456,6 +467,41 @@ class DaemonEngine:
         """Query connected Wi-Fi client list."""
         netns = self.ports.aux_wifi_netns if self.ports else None
         return self.wifi.get_connected_clients(netns=netns)
+
+    def list_wlan_devices(self) -> List[Dict[str, Any]]:
+        """Discover host WLAN devices and identify candidate assist adapters."""
+        return [d.as_dict() for d in self.wifi_relay.list_devices()]
+
+    def start_hotspot_relay(
+        self,
+        interface: str = "wlan1",
+        ssid: str = "MisLTy 4G Share",
+        password: Optional[str] = "mislty420",
+        band: str = "bg",
+        channel: int = 11,
+        wan_iface: str = "ppp0",
+    ) -> Dict[str, Any]:
+        """Activate assist softAP hotspot and NAT packet forwarding over WAN."""
+        return self.wifi_relay.start_relay(
+            interface=interface,
+            ssid=ssid,
+            password=password,
+            band=band,
+            channel=channel,
+            wan_iface=wan_iface,
+        )
+
+    def stop_hotspot_relay(self) -> Dict[str, Any]:
+        """Deactivate assist hotspot and restore clean network routing."""
+        return self.wifi_relay.stop_relay()
+
+    def get_hotspot_relay_status(self) -> Dict[str, Any]:
+        """Query telemetry state of assist hotspot relay."""
+        return self.wifi_relay.get_status().as_dict()
+
+    def get_hotspot_relay_clients(self) -> List[Dict[str, Any]]:
+        """Query connected client stations on assist hotspot."""
+        return [c.as_dict() for c in self.wifi_relay.get_connected_clients()]
 
     def send_sms(self, recipient: str, text: str) -> Dict[str, Any]:
         """Send an SMS text message through modem baseband."""

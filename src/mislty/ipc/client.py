@@ -526,3 +526,93 @@ class MisltyClient:
             return disp.execute(command, timeout=timeout).as_dict()
 
         return self._direct_execute(_at)
+
+    def list_wlan_devices(self) -> List[Dict[str, Any]]:
+        """List detected host wireless adapters and identify candidate relay devices."""
+        if self.active_transport == self.TRANSPORT_SOCKET:
+            return self._call_socket("relay_devices")
+        elif self.active_transport == self.TRANSPORT_DBUS:
+            res_str = self._call_dbus("ListWlanDevices")
+            return json.loads(res_str) if isinstance(res_str, str) else res_str
+
+        # Direct fallback
+        from mislty.net.wifi_relay import WifiRelayManager
+        return [d.as_dict() for d in WifiRelayManager().list_devices()]
+
+    def start_hotspot_relay(
+        self,
+        interface: str = "wlan1",
+        ssid: str = "MisLTy 4G Share",
+        password: Optional[str] = "mislty420",
+        band: str = "bg",
+        channel: int = 11,
+        wan_iface: str = "ppp0",
+    ) -> Dict[str, Any]:
+        """Activate assist softAP hotspot and NAT packet forwarding over WAN."""
+        if self.active_transport == self.TRANSPORT_SOCKET:
+            return self._call_socket("relay_start", {
+                "interface": interface,
+                "ssid": ssid,
+                "password": password,
+                "band": band,
+                "channel": channel,
+                "wan_iface": wan_iface,
+            })
+        elif self.active_transport == self.TRANSPORT_DBUS:
+            res_str = self._call_dbus(
+                "StartHotspotRelay",
+                interface,
+                ssid,
+                password or "",
+                band,
+                channel,
+                wan_iface,
+            )
+            return json.loads(res_str) if isinstance(res_str, str) else res_str
+
+        # Direct fallback
+        from mislty.net.wifi_relay import WifiRelayManager
+        return WifiRelayManager().start_relay(
+            interface=interface,
+            ssid=ssid,
+            password=password,
+            band=band,
+            channel=channel,
+            wan_iface=wan_iface,
+        )
+
+    def stop_hotspot_relay(self) -> Dict[str, Any]:
+        """Deactivate assist hotspot and restore clean network routing."""
+        if self.active_transport == self.TRANSPORT_SOCKET:
+            return self._call_socket("relay_stop")
+        elif self.active_transport == self.TRANSPORT_DBUS:
+            res_str = self._call_dbus("StopHotspotRelay")
+            return json.loads(res_str) if isinstance(res_str, str) else res_str
+
+        # Direct fallback
+        from mislty.net.wifi_relay import WifiRelayManager
+        return WifiRelayManager().stop_relay()
+
+    def get_hotspot_relay_status(self) -> Dict[str, Any]:
+        """Query telemetry state of assist hotspot relay."""
+        if self.active_transport == self.TRANSPORT_SOCKET:
+            return self._call_socket("relay_status")
+        elif self.active_transport == self.TRANSPORT_DBUS:
+            res_str = self._call_dbus("GetHotspotRelayStatus")
+            return json.loads(res_str) if isinstance(res_str, str) else res_str
+
+        # Direct fallback
+        from mislty.net.wifi_relay import WifiRelayManager
+        return WifiRelayManager().get_status().as_dict()
+
+    def get_hotspot_relay_clients(self) -> List[Dict[str, Any]]:
+        """Query connected client stations on assist hotspot."""
+        if self.active_transport == self.TRANSPORT_SOCKET:
+            return self._call_socket("relay_clients")
+        elif self.active_transport == self.TRANSPORT_DBUS:
+            res_str = self._call_dbus("GetHotspotRelayClients")
+            return json.loads(res_str) if isinstance(res_str, str) else res_str
+
+        # Direct fallback
+        from mislty.net.wifi_relay import WifiRelayManager
+        return [c.as_dict() for c in WifiRelayManager().get_connected_clients()]

@@ -82,6 +82,31 @@ def build_parser() -> argparse.ArgumentParser:
     p_ports.add_argument("--json", action="store_true", help="Output ports mapping in structured JSON")
     p_ports.add_argument("--no-udev", action="store_true", help="Bypass udev and crawl sysfs directly")
 
+    # relay
+    p_relay = subparsers.add_parser("relay", help="Assist Wi-Fi Hotspot Relay control (Issue #22)")
+    relay_sub = p_relay.add_subparsers(dest="relay_action", help="Relay subcommands")
+
+    p_relay_list = relay_sub.add_parser("list", help="List detected WLAN devices and identify candidate assist adapters")
+    p_relay_list.add_argument("--json", action="store_true", help="Output in structured JSON")
+
+    p_relay_start = relay_sub.add_parser("start", help="Start assist Wi-Fi hotspot relay and route over WAN")
+    p_relay_start.add_argument("-i", "--interface", default="wlan1", help="Target assist WLAN interface (default: wlan1)")
+    p_relay_start.add_argument("-s", "--ssid", default="MisLTy 4G Share", help="Hotspot broadcast SSID")
+    p_relay_start.add_argument("-p", "--password", default="mislty420", help="WPA2-PSK passphrase (min 8 chars)")
+    p_relay_start.add_argument("-b", "--band", choices=["bg", "a"], default="bg", help="Wi-Fi frequency band (default: bg [2.4GHz])")
+    p_relay_start.add_argument("-c", "--channel", type=int, default=11, help="Wi-Fi channel (default: 11)")
+    p_relay_start.add_argument("-w", "--wan", default="ppp0", help="WAN upstream interface (default: ppp0)")
+    p_relay_start.add_argument("--json", action="store_true", help="Output in structured JSON")
+
+    p_relay_stop = relay_sub.add_parser("stop", help="Stop assist Wi-Fi hotspot relay and teardown NAT")
+    p_relay_stop.add_argument("--json", action="store_true", help="Output in structured JSON")
+
+    p_relay_status = relay_sub.add_parser("status", help="Query live hotspot relay telemetry and uptime")
+    p_relay_status.add_argument("--json", action="store_true", help="Output in structured JSON")
+
+    p_relay_clients = relay_sub.add_parser("clients", help="List connected wireless client stations")
+    p_relay_clients.add_argument("--json", action="store_true", help="Output in structured JSON")
+
     # gui
     subparsers.add_parser("gui", help="Launch MisLTy Desktop GUI Application")
 
@@ -353,6 +378,110 @@ def main(args=None):
             print(f"  • IMSI       : {fmt.bold(imsi)}")
             print(f"  • Operator   : {fmt.cyan(operator, bold=True)}")
             sys.exit(0)
+
+        elif parsed.subcommand == "relay":
+            from mislty.cli.formatter import TerminalFormatter
+            fmt = TerminalFormatter(force_color=False if parsed.no_color else None)
+
+            if parsed.relay_action == "list":
+                devs = client.list_wlan_devices()
+                if parsed.json:
+                    print(json.dumps(devs, indent=2))
+                else:
+                    print(fmt.bold("Discovered Host Wireless Adapters"))
+                    print(fmt.dim("=" * 60))
+                    rows = []
+                    for d in devs:
+                        role = fmt.cyan("PROTECTED (Host Link)") if d.get("is_primary") else (
+                            fmt.green("CANDIDATE (Relay Hotspot)") if d.get("is_candidate") else fmt.yellow("Unsupported")
+                        )
+                        rows.append([
+                            d.get("iface", ""),
+                            f"{d.get('vendor', '')} {d.get('model', '')}".strip() or "Unknown Adapter",
+                            d.get("driver", ""),
+                            d.get("mac", ""),
+                            role,
+                        ])
+                    print(fmt.format_table(["Interface", "Hardware Model", "Driver", "MAC Address", "Role / Status"], rows))
+                sys.exit(0)
+
+            elif parsed.relay_action == "start":
+                print(f"Starting Wi-Fi Hotspot Relay on {parsed.interface} (SSID: '{parsed.ssid}')...")
+                res = client.start_hotspot_relay(
+                    interface=parsed.interface,
+                    ssid=parsed.ssid,
+                    password=parsed.password,
+                    band=parsed.band,
+                    channel=parsed.channel,
+                    wan_iface=parsed.wan,
+                )
+                if parsed.json:
+                    print(json.dumps(res, indent=2))
+                else:
+                    if res.get("active"):
+                        print(fmt.green(f"Hotspot Relay ACTIVE on {res.get('interface')}!"))
+                        print(f"  • SSID     : {fmt.bold(res.get('ssid', ''))}")
+                        print(f"  • IP Subnet: {fmt.cyan(res.get('ip_address', '10.42.0.1'))}/24")
+                        print(f"  • Upstream : {fmt.bold(res.get('wan_iface', 'ppp0'))}")
+                        print(f"  • Channel  : {res.get('channel', 11)} ({res.get('band', 'bg').upper()})")
+                        sys.exit(0)
+                    else:
+                        print(fmt.red("Failed to start Hotspot Relay."), file=sys.stderr)
+                        sys.exit(1)
+
+            elif parsed.relay_action == "stop":
+                print("Stopping Hotspot Relay and flushing forwarding rules...")
+                res = client.stop_hotspot_relay()
+                if parsed.json:
+                    print(json.dumps(res, indent=2))
+                else:
+                    print(fmt.green("Hotspot Relay deactivated and routes restored."))
+                sys.exit(0)
+
+            elif parsed.relay_action == "status":
+                stat = client.get_hotspot_relay_status()
+                if parsed.json:
+                    print(json.dumps(stat, indent=2))
+                else:
+                    active_str = fmt.green("ACTIVE") if stat.get("active") else fmt.yellow("INACTIVE")
+                    print(fmt.bold("Assist Wi-Fi Hotspot Relay Telemetry"))
+                    print(fmt.dim("=" * 45))
+                    print(f"  • State      : {active_str}")
+                    if stat.get("active"):
+                        print(f"  • Interface  : {stat.get('interface')}")
+                        print(f"  • SSID       : {fmt.bold(stat.get('ssid', ''))}")
+                        print(f"  • IP Address : {stat.get('ip_address')}")
+                        print(f"  • Upstream   : {stat.get('wan_iface')}")
+                        print(f"  • Clients    : {stat.get('client_count', 0)}")
+                        print(f"  • Uptime     : {stat.get('uptime_seconds', 0)}s")
+                sys.exit(0)
+
+            elif parsed.relay_action == "clients":
+                clients = client.get_hotspot_relay_clients()
+                if parsed.json:
+                    print(json.dumps(clients, indent=2))
+                else:
+                    if not clients:
+                        print("No wireless stations currently associated with assist hotspot.")
+                    else:
+                        rows = []
+                        for c in clients:
+                            sig = f"{c.get('signal_dbm')} dBm" if c.get("signal_dbm") is not None else "N/A"
+                            rx_mb = f"{c.get('rx_bytes', 0) / (1024 * 1024):.2f} MB"
+                            tx_mb = f"{c.get('tx_bytes', 0) / (1024 * 1024):.2f} MB"
+                            rows.append([
+                                c.get("mac", ""),
+                                c.get("ip") or "Assigning...",
+                                sig,
+                                rx_mb,
+                                tx_mb,
+                            ])
+                        print(fmt.format_table(["MAC Address", "IP Address", "Signal", "RX", "TX"], rows))
+                sys.exit(0)
+
+            elif not parsed.relay_action:
+                p_relay.print_help()
+                sys.exit(0)
 
     finally:
         client.close()

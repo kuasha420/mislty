@@ -8,9 +8,11 @@ Item {
     id: root
 
     property bool showPassword: false
+    property bool showRelayPassword: false
 
     ScrollView {
         id: scroll
+        objectName: "wifiScrollView"
         anchors.fill: parent
         clip: true
         contentWidth: availableWidth
@@ -409,6 +411,423 @@ Item {
             }
 
             // ===============================================================
+            // ASSIST WI-FI HOTSPOT RELAY (SIMULTANEOUS 4G WAN + SOFTAP)
+            // ===============================================================
+            Card {
+                Layout.fillWidth: true
+                title: "Assist Wi-Fi Hotspot Relay (Simultaneous 4G WAN + SoftAP)"
+                subtitle: "Broadcast an independent Wi-Fi hotspot on auxiliary WLAN hardware (e.g. TP-Link USB adapter), sharing 4G LTE cellular data over ppp0 without touching host connection."
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingMd
+
+                    // Top Status Row
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacingMd
+
+                        StatusPill {
+                            label: "RELAY"
+                            value: (bridge?.relayActive ?? false) ? "ACTIVE" : "STANDBY"
+                            statusColor: (bridge?.relayActive ?? false) ? Theme.colorSuccess : Theme.textMuted
+                        }
+
+                        StatusPill {
+                            label: "DEVICE"
+                            value: (bridge?.relayInterface && bridge.relayInterface.length > 0) ? bridge.relayInterface : "None"
+                            statusColor: Theme.colorCyan
+                        }
+
+                        StatusPill {
+                            label: "SUBNET"
+                            value: (bridge?.relayIpAddress && bridge.relayIpAddress.length > 0) ? (bridge.relayIpAddress + "/24") : "10.42.0.1/24"
+                            statusColor: Theme.colorGold
+                        }
+
+                        StatusPill {
+                            label: "WAN"
+                            value: (bridge?.relayWanInterface && bridge.relayWanInterface.length > 0) ? bridge.relayWanInterface : "ppp0"
+                            statusColor: Theme.colorPurple
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        FelineButton {
+                            text: "Scan Adapters"
+                            variant: "outline"
+                            iconGlyph: "🔍"
+                            implicitHeight: 28
+                            implicitWidth: 125
+                            onClicked: {
+                                if (typeof bridge !== "undefined" && bridge) {
+                                    bridge.refreshWlanDevices();
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 1
+                        color: Theme.colorBorder
+                    }
+
+                    // Device & Network Configuration Row
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacingLg
+
+                        // Adapter Selector
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 260
+                            spacing: Theme.spacingXs
+
+                            Text {
+                                text: "ASSIST WLAN ADAPTER (PROTECTS PRIMARY)"
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.textSecondary
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 38
+                                radius: Theme.radiusSm
+                                color: Theme.colorObsidian
+                                border.color: Theme.colorBorder
+                                border.width: 1
+
+                                ComboBox {
+                                    id: relayDeviceBox
+                                    anchors.fill: parent
+                                    enabled: !(bridge?.relayActive ?? false)
+                                    model: {
+                                        var devs = bridge?.wlanDevices ?? [];
+                                        var labels = [];
+                                        for (var i = 0; i < devs.length; i++) {
+                                            var d = devs[i];
+                                            var tag = d.is_primary ? " [Protected Host]" : (d.is_candidate ? " [Candidate AP]" : " [Unsupported]");
+                                            var name = d.iface + " (" + (d.vendor ? d.vendor + " " : "") + (d.model ? d.model : d.driver) + ")" + tag;
+                                            labels.push(name);
+                                        }
+                                        return labels.length > 0 ? labels : ["No WLAN adapters detected"];
+                                    }
+                                    currentIndex: {
+                                        var devs = bridge?.wlanDevices ?? [];
+                                        for (var i = 0; i < devs.length; i++) {
+                                            if (devs[i].is_candidate) return i;
+                                        }
+                                        return 0;
+                                    }
+                                    background: Rectangle { color: "transparent" }
+                                    contentItem: TextEdit {
+                                        readOnly: true
+                                        selectByMouse: false
+                                        leftPadding: 10
+                                        text: relayDeviceBox.displayText
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textPrimary
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                }
+                            }
+                        }
+
+                        // Hotspot SSID Input
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingXs
+
+                            Text {
+                                text: "HOTSPOT SSID (BROADCAST NAME)"
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.textSecondary
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 38
+                                radius: Theme.radiusSm
+                                color: Theme.colorObsidian
+                                border.color: Theme.colorBorder
+                                border.width: 1
+
+                                TextInput {
+                                    id: relaySsidInput
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.spacingSm
+                                    enabled: !(bridge?.relayActive ?? false)
+                                    text: (bridge?.relaySsid && bridge.relaySsid.length > 0) ? bridge.relaySsid : "MisLTy 4G Share"
+                                    font.family: Theme.fontMono
+                                    font.pixelSize: Theme.fontSizeBody
+                                    color: Theme.textPrimary
+                                    selectByMouse: true
+                                }
+                            }
+                        }
+
+                        // WPA2-PSK Passphrase Input
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingXs
+
+                            Text {
+                                text: "WPA2-PSK PASSPHRASE"
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.textSecondary
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 38
+                                radius: Theme.radiusSm
+                                color: Theme.colorObsidian
+                                border.color: Theme.colorBorder
+                                border.width: 1
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: Theme.spacingSm
+                                    spacing: Theme.spacingSm
+
+                                    TextInput {
+                                        id: relayPassInput
+                                        Layout.fillWidth: true
+                                        enabled: !(bridge?.relayActive ?? false)
+                                        text: "mislty420"
+                                        echoMode: root.showRelayPassword ? TextInput.Normal : TextInput.Password
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: Theme.fontSizeBody
+                                        color: Theme.textPrimary
+                                        selectByMouse: true
+                                    }
+
+                                    Text {
+                                        text: root.showRelayPassword ? "🙈" : "👁"
+                                        font.pixelSize: 16
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.showRelayPassword = !root.showRelayPassword
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Band & Channel Selector
+                        ColumnLayout {
+                            Layout.preferredWidth: 150
+                            spacing: Theme.spacingXs
+
+                            Text {
+                                text: "BAND / CHANNEL"
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.textSecondary
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                height: 38
+                                radius: Theme.radiusSm
+                                color: Theme.colorObsidian
+                                border.color: Theme.colorBorder
+                                border.width: 1
+
+                                ComboBox {
+                                    id: relayChannelBox
+                                    anchors.fill: parent
+                                    enabled: !(bridge?.relayActive ?? false)
+                                    model: ["Ch 11 (2.4 GHz)", "Ch 6 (2.4 GHz)", "Ch 1 (2.4 GHz)", "Ch 36 (5 GHz)", "Ch 149 (5 GHz)"]
+                                    currentIndex: 0
+                                    background: Rectangle { color: "transparent" }
+                                    contentItem: TextEdit {
+                                        readOnly: true
+                                        selectByMouse: false
+                                        leftPadding: 10
+                                        text: relayChannelBox.displayText
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textPrimary
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Action Controls & Status Bar
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacingMd
+
+                        FelineButton {
+                            text: (bridge?.relayActive ?? false) ? "Stop Hotspot Relay" : "Start Hotspot Relay"
+                            variant: (bridge?.relayActive ?? false) ? "danger" : "primary"
+                            iconGlyph: (bridge?.relayActive ?? false) ? "🛑" : "📡"
+                            implicitWidth: 180
+                            implicitHeight: 38
+                            onClicked: {
+                                if (typeof bridge !== "undefined" && bridge) {
+                                    if (bridge.relayActive) {
+                                        bridge.stopHotspotRelay();
+                                    } else {
+                                        var devs = bridge.wlanDevices ?? [];
+                                        var targetIface = "wlan1";
+                                        if (devs.length > relayDeviceBox.currentIndex) {
+                                            targetIface = devs[relayDeviceBox.currentIndex].iface;
+                                        }
+                                        var band = "bg";
+                                        var ch = 11;
+                                        if (relayChannelBox.currentIndex === 1) { ch = 6; band = "bg"; }
+                                        else if (relayChannelBox.currentIndex === 2) { ch = 1; band = "bg"; }
+                                        else if (relayChannelBox.currentIndex === 3) { ch = 36; band = "a"; }
+                                        else if (relayChannelBox.currentIndex === 4) { ch = 149; band = "a"; }
+
+                                        bridge.startHotspotRelay(
+                                            targetIface,
+                                            relaySsidInput.text,
+                                            relayPassInput.text,
+                                            band,
+                                            ch,
+                                            "ppp0"
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: (bridge?.relayActive ?? false)
+                                ? ("● Broadcasting on " + (bridge?.relayInterface ?? "wlan1") + " (" + (bridge?.relaySsid ?? "") + ") • Gateway: " + (bridge?.relayIpAddress ?? "10.42.0.1") + " • Upstream WAN: " + (bridge?.relayWanInterface ?? "ppp0") + " (LTE)")
+                                : "Auxiliary adapter ready. Click 'Start Hotspot Relay' to broadcast Wi-Fi softAP and forward client traffic out 4G modem."
+                            font.family: Theme.fontMono
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: (bridge?.relayActive ?? false) ? Theme.colorSuccess : Theme.textMuted
+                            elide: Text.ElideRight
+                        }
+
+                        FelineButton {
+                            text: "Refresh Clients"
+                            variant: "outline"
+                            iconGlyph: "⟳"
+                            implicitHeight: 34
+                            implicitWidth: 130
+                            visible: (bridge?.relayActive ?? false)
+                            onClicked: {
+                                if (typeof bridge !== "undefined" && bridge) {
+                                    bridge.getHotspotRelayClients();
+                                }
+                            }
+                        }
+                    }
+
+                    // Connected Relay Stations Table
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacingXs
+                        visible: (bridge?.relayActive ?? false)
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 1
+                            color: Theme.colorBorder
+                        }
+
+                        Text {
+                            text: "CONNECTED RELAY STATIONS (" + (bridge?.relayClients?.length ?? 0) + ")"
+                            font.family: Theme.fontMono
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.Bold
+                            color: Theme.colorCyan
+                        }
+
+                        ListView {
+                            id: relayStationList
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: Math.max(70, Math.min(240, (bridge?.relayClients?.length ?? 0) * 44))
+                            clip: true
+                            model: bridge?.relayClients ?? []
+
+                            delegate: Rectangle {
+                                required property var modelData
+                                required property int index
+                                width: relayStationList.width
+                                height: 40
+                                radius: Theme.radiusSm
+                                color: (index % 2 === 0) ? Theme.colorObsidian : "transparent"
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: Theme.spacingMd
+                                    anchors.rightMargin: Theme.spacingMd
+                                    spacing: Theme.spacingLg
+
+                                    Text {
+                                        text: "#" + (index + 1)
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textMuted
+                                        width: 25
+                                    }
+
+                                    Text {
+                                        text: modelData.mac
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: Theme.fontSizeBody
+                                        font.weight: Font.Bold
+                                        color: Theme.colorCyan
+                                        width: 150
+                                    }
+
+                                    Text {
+                                        text: modelData.ip ? modelData.ip : "Assigning IP..."
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: Theme.fontSizeBody
+                                        color: modelData.ip ? Theme.colorSuccess : Theme.textMuted
+                                        width: 140
+                                    }
+
+                                    Text {
+                                        text: (modelData.signal_dbm !== null && modelData.signal_dbm !== undefined) ? (modelData.signal_dbm + " dBm") : "Signal N/A"
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.textSecondary
+                                        width: 90
+                                    }
+
+                                    Item { Layout.fillWidth: true }
+
+                                    StatusPill {
+                                        label: "FORWARDING"
+                                        value: "PPP0 WAN"
+                                        statusColor: Theme.colorPurple
+                                    }
+                                }
+                            }
+
+                            Text {
+                                anchors.centerIn: parent
+                                visible: relayStationList.count === 0
+                                text: "No client devices connected to relay hotspot yet.\nConnect phones, tablets, or laptops to " + (bridge?.relaySsid ?? "the hotspot") + "."
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontSizeCaption
+                                color: Theme.textMuted
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ===============================================================
             // LIVE CONNECTED STATIONS INVENTORY (QC-WEBS SCRAPED)
             // ===============================================================
             Card {
@@ -458,7 +877,7 @@ Item {
                     ListView {
                         id: stationList
                         Layout.fillWidth: true
-                        implicitHeight: Math.max(90, Math.min(240, (bridge?.wifiStations?.length ?? 0) * 44))
+                        Layout.preferredHeight: Math.max(90, Math.min(240, (bridge?.wifiStations?.length ?? 0) * 44))
                         clip: true
                         model: bridge?.wifiStations ?? []
 

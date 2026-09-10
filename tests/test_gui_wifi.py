@@ -78,6 +78,25 @@ def mock_wifi_client():
         def list_sms(self, *args, **kwargs): return []
         def send_sms(self, *args, **kwargs): return {"success": True}
         def sync_sms(self, *args, **kwargs): return []
+        def list_wlan_devices(self):
+            return [
+                {"iface": "wlan0", "vendor": "Intel", "model": "8265", "is_primary": True, "is_candidate": False},
+                {"iface": "wlan1", "vendor": "TP-Link", "model": "Archer T4U", "is_primary": False, "is_candidate": True},
+            ]
+        def start_hotspot_relay(self, **kwargs):
+            return {
+                "active": True,
+                "interface": kwargs.get("interface", "wlan1"),
+                "ssid": kwargs.get("ssid", "MisLTy 4G Share"),
+                "ip_address": "10.42.0.1",
+                "wan_iface": kwargs.get("wan_iface", "ppp0"),
+            }
+        def stop_hotspot_relay(self):
+            return {"active": False}
+        def get_hotspot_relay_status(self):
+            return {"active": True, "interface": "wlan1", "ssid": "MisLTy 4G Share", "ip_address": "10.42.0.1", "wan_iface": "ppp0", "uptime_seconds": 42}
+        def get_hotspot_relay_clients(self):
+            return [{"mac": "AA:BB:CC:DD:EE:FF", "ip": "10.42.0.52", "signal_dbm": -45, "rx_bytes": 1000, "tx_bytes": 2000}]
 
     return MockClient()
 
@@ -147,3 +166,37 @@ def test_wifi_deck_actions(qapp, mock_wifi_client):
     assert switched_usb is True
     time.sleep(0.05)
     assert bridge.operationalMode == "usb_modem"
+
+
+def test_wifi_relay_deck_actions_and_properties(qapp, mock_wifi_client):
+    """Verify assist Wi-Fi hotspot relay properties and slots in MisltyBridge."""
+    bridge = MisltyBridge(client=mock_wifi_client)
+
+    # 1. Device enumeration
+    bridge.refreshWlanDevices()
+    time.sleep(0.05)
+    assert len(bridge.wlanDevices) == 2
+    assert bridge.wlanDevices[0]["iface"] == "wlan0"
+    assert bridge.wlanDevices[0]["is_primary"] is True
+    assert bridge.wlanDevices[1]["iface"] == "wlan1"
+    assert bridge.wlanDevices[1]["is_candidate"] is True
+
+    # 2. Start relay
+    bridge.startHotspotRelay("wlan1", "MisLTy 4G Share", "mislty420", "bg", 11, "ppp0")
+    time.sleep(0.05)
+    assert bridge.relayActive is True
+    assert bridge.relayInterface == "wlan1"
+    assert bridge.relaySsid == "MisLTy 4G Share"
+    assert bridge.relayIpAddress == "10.42.0.1"
+
+    # 3. Query relay clients
+    bridge.getHotspotRelayClients()
+    time.sleep(0.05)
+    assert len(bridge.relayClients) == 1
+    assert bridge.relayClients[0]["mac"] == "AA:BB:CC:DD:EE:FF"
+    assert bridge.relayClients[0]["ip"] == "10.42.0.52"
+
+    # 4. Stop relay
+    bridge.stopHotspotRelay()
+    time.sleep(0.05)
+    assert bridge.relayActive is False

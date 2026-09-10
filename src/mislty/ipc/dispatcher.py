@@ -60,6 +60,11 @@ class IpcDispatcher:
             "mark_sms_read": self._handle_mark_sms_read,
             "at": self._handle_at,
             "ping": self._handle_ping,
+            "relay_devices": self._handle_relay_devices,
+            "relay_start": self._handle_relay_start,
+            "relay_stop": self._handle_relay_stop,
+            "relay_status": self._handle_relay_status,
+            "relay_clients": self._handle_relay_clients,
         }
 
     def dispatch(
@@ -141,3 +146,33 @@ class IpcDispatcher:
 
     def _handle_at(self, command: str, timeout: float = 3.0) -> Dict[str, Any]:
         return self.engine.execute_at(command, timeout=timeout)
+
+    def _handle_relay_devices(self) -> List[Dict[str, Any]]:
+        return self.engine.list_wlan_devices()
+
+    def _handle_relay_start(
+        self,
+        interface: str = "wlan1",
+        ssid: str = "MisLTy 4G Share",
+        password: Optional[str] = "mislty420",
+        band: str = "bg",
+        channel: int = 11,
+        wan_iface: str = "ppp0",
+    ) -> Dict[str, Any]:
+        return self.engine.start_hotspot_relay(
+            interface=str(interface),
+            ssid=str(ssid),
+            password=str(password) if password else None,
+            band=str(band),
+            channel=int(channel),
+            wan_iface=str(wan_iface),
+        )
+
+    def _handle_relay_stop(self) -> Dict[str, Any]:
+        return self.engine.stop_hotspot_relay()
+
+    def _handle_relay_status(self) -> Dict[str, Any]:
+        return self.engine.get_hotspot_relay_status()
+
+    def _handle_relay_clients(self) -> List[Dict[str, Any]]:
+        return self.engine.get_hotspot_relay_clients()

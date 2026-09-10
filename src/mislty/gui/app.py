@@ -80,6 +80,14 @@ class MisltyBridge(QObject):
     callDurationChanged = Signal(int)
     tragicVoiceVisibleChanged = Signal(bool)
     tragicVoiceTriggered = Signal("QVariant")
+    wlanDevicesChanged = Signal(list)
+    relayActiveChanged = Signal(bool)
+    relayInterfaceChanged = Signal(str)
+    relaySsidChanged = Signal(str)
+    relayIpAddressChanged = Signal(str)
+    relayUptimeChanged = Signal(int)
+    relayClientsChanged = Signal(list)
+    relayWanInterfaceChanged = Signal(str)
 
     def __init__(
         self,
@@ -124,6 +132,14 @@ class MisltyBridge(QObject):
         self._is_switching_mode: bool = False
         self._sms_threads: List[Dict[str, Any]] = []
         self._sms_messages: List[Dict[str, Any]] = []
+        self._wlan_devices: List[Dict[str, Any]] = []
+        self._relay_active: bool = False
+        self._relay_interface: str = "wlan1"
+        self._relay_ssid: str = "MisLTy 4G Share"
+        self._relay_ip_address: str = "10.42.0.1"
+        self._relay_uptime: int = 0
+        self._relay_clients: List[Dict[str, Any]] = []
+        self._relay_wan_interface: str = "ppp0"
 
         # QC-Webs Embedded Client and Mode Switcher
         from mislty.net.qcwebs_client import QcWebsClient, SmartModeSwitcher
@@ -153,6 +169,7 @@ class MisltyBridge(QObject):
         # Perform initial synchronous status check
         try:
             self._update_status_data(self._client.get_status())
+            self.refreshWlanDevices()
         except Exception as exc:
             logger.debug("Initial status probe failed: %s", exc)
 
@@ -510,6 +527,86 @@ class MisltyBridge(QObject):
             self._tragic_voice_visible = value
             self.tragicVoiceVisibleChanged.emit(value)
 
+    @Property(list, notify=wlanDevicesChanged)
+    def wlanDevices(self) -> list:
+        return self._wlan_devices
+
+    @wlanDevices.setter
+    def wlanDevices(self, value: list) -> None:
+        if self._wlan_devices != value:
+            self._wlan_devices = value
+            self.wlanDevicesChanged.emit(value)
+
+    @Property(bool, notify=relayActiveChanged)
+    def relayActive(self) -> bool:
+        return self._relay_active
+
+    @relayActive.setter
+    def relayActive(self, value: bool) -> None:
+        if self._relay_active != value:
+            self._relay_active = value
+            self.relayActiveChanged.emit(value)
+
+    @Property(str, notify=relayInterfaceChanged)
+    def relayInterface(self) -> str:
+        return self._relay_interface
+
+    @relayInterface.setter
+    def relayInterface(self, value: str) -> None:
+        if self._relay_interface != value:
+            self._relay_interface = value
+            self.relayInterfaceChanged.emit(value)
+
+    @Property(str, notify=relaySsidChanged)
+    def relaySsid(self) -> str:
+        return self._relay_ssid
+
+    @relaySsid.setter
+    def relaySsid(self, value: str) -> None:
+        if self._relay_ssid != value:
+            self._relay_ssid = value
+            self.relaySsidChanged.emit(value)
+
+    @Property(str, notify=relayIpAddressChanged)
+    def relayIpAddress(self) -> str:
+        return self._relay_ip_address
+
+    @relayIpAddress.setter
+    def relayIpAddress(self, value: str) -> None:
+        if self._relay_ip_address != value:
+            self._relay_ip_address = value
+            self.relayIpAddressChanged.emit(value)
+
+    @Property(int, notify=relayUptimeChanged)
+    def relayUptime(self) -> int:
+        return self._relay_uptime
+
+    @relayUptime.setter
+    def relayUptime(self, value: int) -> None:
+        if self._relay_uptime != value:
+            self._relay_uptime = value
+            self.relayUptimeChanged.emit(value)
+
+    @Property(list, notify=relayClientsChanged)
+    def relayClients(self) -> list:
+        return self._relay_clients
+
+    @relayClients.setter
+    def relayClients(self, value: list) -> None:
+        if self._relay_clients != value:
+            self._relay_clients = value
+            self.relayClientsChanged.emit(value)
+
+    @Property(str, notify=relayWanInterfaceChanged)
+    def relayWanInterface(self) -> str:
+        return self._relay_wan_interface
+
+    @relayWanInterface.setter
+    def relayWanInterface(self, value: str) -> None:
+        if self._relay_wan_interface != value:
+            self._relay_wan_interface = value
+            self.relayWanInterfaceChanged.emit(value)
+
     def _get_aux_netns(self) -> Optional[str]:
         """Detect if auxiliary Wi-Fi interface is configured in an isolated network namespace."""
         from mislty.core.port_resolver import PortResolver
@@ -608,9 +705,101 @@ class MisltyBridge(QObject):
             self._connected_start_time = 0.0
             self.sessionDuration = 0
 
+        # Wi-Fi Relay details
+        relay = stat.get("wifi_relay", {})
+        self.relayActive = bool(relay.get("active", False))
+        if relay.get("interface"):
+            self.relayInterface = relay.get("interface")
+        if relay.get("ssid"):
+            self.relaySsid = relay.get("ssid")
+        if relay.get("ip_address"):
+            self.relayIpAddress = relay.get("ip_address")
+        self.relayUptime = int(relay.get("uptime_seconds", 0))
+        if relay.get("wan_iface"):
+            self.relayWanInterface = relay.get("wan_iface")
+
     # -----------------------------------------------------------------------
     # Public Invokable Slots
     # -----------------------------------------------------------------------
+
+    @Slot(result=list)
+    def refreshWlanDevices(self) -> list:
+        """Enumerate host WLAN devices and update wlanDevices property."""
+        def _worker():
+            try:
+                devs = self._client.list_wlan_devices()
+                self.wlanDevices = devs
+            except Exception as exc:
+                logger.debug("Failed to list WLAN devices: %s", exc)
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return self._wlan_devices
+
+    @Slot(str, str, str, str, int, str, result=bool)
+    def startHotspotRelay(
+        self,
+        interface: str = "wlan1",
+        ssid: str = "MisLTy 4G Share",
+        password: str = "mislty420",
+        band: str = "bg",
+        channel: int = 11,
+        wan_iface: str = "ppp0",
+    ) -> bool:
+        """Start assist softAP and route via cellular modem WAN."""
+        def _worker():
+            try:
+                self.statusMessage = f"Starting Hotspot Relay on {interface}..."
+                res = self._client.start_hotspot_relay(
+                    interface=interface,
+                    ssid=ssid,
+                    password=password if password else None,
+                    band=band,
+                    channel=channel,
+                    wan_iface=wan_iface,
+                )
+                if res.get("active"):
+                    self.statusMessage = f"Hotspot Relay ACTIVE on {interface} ({ssid})"
+                    self.relayActive = True
+                    self.relayInterface = interface
+                    self.relaySsid = ssid
+                    self.relayIpAddress = res.get("ip_address", "10.42.0.1")
+                else:
+                    self.statusMessage = f"Failed to start Hotspot Relay: {res.get('error', 'Error')}"
+            except Exception as exc:
+                logger.error("startHotspotRelay error: %s", exc)
+                self.statusMessage = f"Relay error: {exc}"
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return True
+
+    @Slot(result=bool)
+    def stopHotspotRelay(self) -> bool:
+        """Deactivate assist hotspot and restore clean network routing."""
+        def _worker():
+            try:
+                self.statusMessage = "Stopping Hotspot Relay..."
+                self._client.stop_hotspot_relay()
+                self.relayActive = False
+                self.statusMessage = "Hotspot Relay stopped."
+            except Exception as exc:
+                logger.error("stopHotspotRelay error: %s", exc)
+                self.statusMessage = f"Stop relay error: {exc}"
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return True
+
+    @Slot(result=list)
+    def getHotspotRelayClients(self) -> list:
+        """Query stations associated with assist hotspot."""
+        def _worker():
+            try:
+                clients = self._client.get_hotspot_relay_clients()
+                self.relayClients = clients
+            except Exception as exc:
+                logger.debug("Failed to get hotspot relay clients: %s", exc)
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return self._relay_clients
 
     @Slot(int)
     def setActiveDeck(self, deck: int) -> None:

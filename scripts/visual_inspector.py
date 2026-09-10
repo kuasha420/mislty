@@ -56,8 +56,16 @@ class MockVisualBridge(QObject):
     tragicVoiceModalVisibleChanged = Signal(bool)
     smsThreadsChanged = Signal()
     smsMessagesChanged = Signal()
-
     wifiStationsChanged = Signal()
+
+    wlanDevicesChanged = Signal(list)
+    relayActiveChanged = Signal(bool)
+    relayInterfaceChanged = Signal(str)
+    relaySsidChanged = Signal(str)
+    relayIpAddressChanged = Signal(str)
+    relayUptimeChanged = Signal(int)
+    relayClientsChanged = Signal(list)
+    relayWanInterfaceChanged = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -113,7 +121,47 @@ class MockVisualBridge(QObject):
 
         self._active_thread_id = 2
 
+        # Wi-Fi Hotspot Relay Mock Data
+        self._wlan_devices = [
+            {"iface": "wlan0", "vendor": "Intel Corporation", "model": "Wireless 8265 / 8275", "driver": "iwlwifi", "mac": "64:79:f0:36:70:ae", "is_primary": True, "supports_ap": True, "is_candidate": False},
+            {"iface": "wlan1", "vendor": "TP-Link", "model": "Archer T4U ver.3", "driver": "rtw88_8822bu", "mac": "92:b8:bf:75:a5:fe", "is_primary": False, "supports_ap": True, "is_candidate": True},
+        ]
+        self._relay_active = True
+        self._relay_interface = "wlan1"
+        self._relay_ssid = "MisLTy 4G Share"
+        self._relay_ip_address = "10.42.0.1"
+        self._relay_uptime = 1240
+        self._relay_clients = [
+            {"mac": "b4:b0:24:aa:bb:cc", "ip": "10.42.0.52", "signal_dbm": -48, "rx_bytes": 14200000, "tx_bytes": 3500000},
+            {"mac": "e4:5f:01:42:00:88", "ip": "10.42.0.105", "signal_dbm": -62, "rx_bytes": 8900000, "tx_bytes": 1200000},
+        ]
+        self._relay_wan_interface = "ppp0"
+
     # QML Properties
+    @Property(list, notify=wlanDevicesChanged)
+    def wlanDevices(self): return self._wlan_devices
+
+    @Property(bool, notify=relayActiveChanged)
+    def relayActive(self): return self._relay_active
+
+    @Property(str, notify=relayInterfaceChanged)
+    def relayInterface(self): return self._relay_interface
+
+    @Property(str, notify=relaySsidChanged)
+    def relaySsid(self): return self._relay_ssid
+
+    @Property(str, notify=relayIpAddressChanged)
+    def relayIpAddress(self): return self._relay_ip_address
+
+    @Property(int, notify=relayUptimeChanged)
+    def relayUptime(self): return self._relay_uptime
+
+    @Property(list, notify=relayClientsChanged)
+    def relayClients(self): return self._relay_clients
+
+    @Property(str, notify=relayWanInterfaceChanged)
+    def relayWanInterface(self): return self._relay_wan_interface
+
     @Property(bool, notify=connectedChanged)
     def connected(self): return self._connected
 
@@ -217,6 +265,24 @@ class MockVisualBridge(QObject):
 
     @Slot(result=list)
     def getWifiClients(self): return self._wifi_clients
+
+    @Slot(result=list)
+    def refreshWlanDevices(self): return self._wlan_devices
+
+    @Slot(str, str, str, str, int, str, result=bool)
+    def startHotspotRelay(self, *args):
+        self._relay_active = True
+        self.relayActiveChanged.emit(True)
+        return True
+
+    @Slot(result=bool)
+    def stopHotspotRelay(self):
+        self._relay_active = False
+        self.relayActiveChanged.emit(False)
+        return True
+
+    @Slot(result=list)
+    def getHotspotRelayClients(self): return self._relay_clients
 
     @Slot(result=list)
     def getSmsThreads(self): return self._sms_threads
@@ -336,6 +402,25 @@ def render_inspection(output_dir: Path, live: bool = False):
             grab.saveToFile(str(out_file))
             print(f"Captured: {out_file.name} ({w}x{h})")
             captured_files.append(out_file)
+
+            if deck_idx == 1 and res_label == "default":
+                scroll_item = window.findChild(QQuickItem, "wifiScrollView")
+                if scroll_item:
+                    scroll_item.setProperty("contentY", 450.0)
+                    for child in scroll_item.childItems():
+                        if child.property("contentY") is not None:
+                            child.setProperty("contentY", 450.0)
+                for _ in range(25):
+                    app.processEvents()
+                    time.sleep(0.02)
+                loop = QEventLoop()
+                grab_scrolled = window.contentItem().grabToImage()
+                grab_scrolled.ready.connect(loop.quit)
+                loop.exec()
+                scrolled_out = output_dir / f"wifi_relay_scrolled_{w}x{h}.png"
+                grab_scrolled.saveToFile(str(scrolled_out))
+                print(f"Captured: {scrolled_out.name}")
+                captured_files.append(scrolled_out)
 
     # Also capture Tragic Voice Lore modal if on dialer view
     bridge.setActiveDeck(3)
