@@ -1,4 +1,5 @@
 DashboardView 1.0 DashboardView.qml
 WifiView 1.0 WifiView.qml
 SmsView 1.0 SmsView.qml
+DialerView 1.0 DialerView.qml
 DiagnosticsView 1.0 DiagnosticsView.qml

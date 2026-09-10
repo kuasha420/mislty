@@ -28,6 +28,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 
+from mislty.audio.pcm_bridge import TelephonyEngine, play_dtmf_tone, TRAGIC_VOICE_LORE
 from mislty.core.sms import calculate_sms_segments, send_desktop_notification
 from mislty.ipc.client import MisltyClient
 
@@ -73,6 +74,11 @@ class MisltyBridge(QObject):
     smsThreadsChanged = Signal(list)
     smsMessagesChanged = Signal(list)
     smsReceived = Signal(str, str)
+    callStateChanged = Signal(str)
+    activeCallNumberChanged = Signal(str)
+    callDurationChanged = Signal(int)
+    tragicVoiceVisibleChanged = Signal(bool)
+    tragicVoiceTriggered = Signal("QVariant")
 
     def __init__(
         self,
@@ -126,6 +132,16 @@ class MisltyBridge(QObject):
             aux_netns = self._get_aux_netns()
             self._qcwebs = QcWebsClient(netns=aux_netns)
         self._mode_switcher = SmartModeSwitcher(qcwebs_client=self._qcwebs)
+
+        # Telephony Engine State
+        self._call_state: str = "IDLE"
+        self._active_call_number: str = ""
+        self._call_duration: int = 0
+        self._tragic_voice_visible: bool = False
+        self._telephony = TelephonyEngine(
+            on_state_change=self._on_call_state_change,
+            on_tragic_voice=self._on_tragic_voice,
+        )
 
         # Internal Rate Tracking State
         self._last_poll_time: float = 0.0
@@ -452,6 +468,46 @@ class MisltyBridge(QObject):
         if self._is_switching_mode != value:
             self._is_switching_mode = value
             self.isSwitchingModeChanged.emit(value)
+
+    @Property(str, notify=callStateChanged)
+    def callState(self) -> str:
+        return self._call_state
+
+    @callState.setter
+    def callState(self, value: str) -> None:
+        if self._call_state != value:
+            self._call_state = value
+            self.callStateChanged.emit(value)
+
+    @Property(str, notify=activeCallNumberChanged)
+    def activeCallNumber(self) -> str:
+        return self._active_call_number
+
+    @activeCallNumber.setter
+    def activeCallNumber(self, value: str) -> None:
+        if self._active_call_number != value:
+            self._active_call_number = value
+            self.activeCallNumberChanged.emit(value)
+
+    @Property(int, notify=callDurationChanged)
+    def callDuration(self) -> int:
+        return self._call_duration
+
+    @callDuration.setter
+    def callDuration(self, value: int) -> None:
+        if self._call_duration != value:
+            self._call_duration = value
+            self.callDurationChanged.emit(value)
+
+    @Property(bool, notify=tragicVoiceVisibleChanged)
+    def tragicVoiceVisible(self) -> bool:
+        return self._tragic_voice_visible
+
+    @tragicVoiceVisible.setter
+    def tragicVoiceVisible(self, value: bool) -> None:
+        if self._tragic_voice_visible != value:
+            self._tragic_voice_visible = value
+            self.tragicVoiceVisibleChanged.emit(value)
 
     def _get_aux_netns(self) -> Optional[str]:
         """Detect if auxiliary Wi-Fi interface is configured in an isolated network namespace."""
@@ -873,6 +929,57 @@ class MisltyBridge(QObject):
         )
         self.smsReceived.emit(sender, body)
         self.getSmsThreads()
+
+    # -----------------------------------------------------------------------
+    # Telephony & Audio Bridge Slots
+    # -----------------------------------------------------------------------
+
+    def _on_call_state_change(self, state: str, session: Any) -> None:
+        """Handle internal telephony engine state transition."""
+        self.callState = state
+        self.activeCallNumber = session.number
+        self.callDuration = session.duration
+
+    def _on_tragic_voice(self, details: dict) -> None:
+        """Handle Tragic Voice CSFB rejection event."""
+        self.tragicVoiceVisible = True
+        self.tragicVoiceTriggered.emit(details)
+
+    @Slot(str, result=bool)
+    def dialNumber(self, number: str) -> bool:
+        """Initiate outbound voice call via baseband."""
+        res = self._telephony.dial(number)
+        return res.get("success", False)
+
+    @Slot(result=bool)
+    def hangupCall(self) -> bool:
+        """Terminate active or pending call session."""
+        res = self._telephony.hangup()
+        return res.get("success", False)
+
+    @Slot(str, result=bool)
+    def sendDtmfTone(self, digit: str) -> bool:
+        """Synthesize and play audible DTMF tone for dialer keypad."""
+        return play_dtmf_tone(digit)
+
+    @Slot()
+    def dismissTragicVoice(self) -> None:
+        """Dismiss Tragic Voice narrative modal."""
+        self.tragicVoiceVisible = False
+
+    @Slot(str)
+    def triggerTragicVoiceLore(self, number: str = "") -> None:
+        """Trigger the Tragic Voice modal presentation for lore inspection."""
+        self.tragicVoiceVisible = True
+        target_number = number if number else (self.activeCallNumber or "121")
+        self.tragicVoiceTriggered.emit({
+            "title": TRAGIC_VOICE_LORE["title"],
+            "subtitle": TRAGIC_VOICE_LORE["subtitle"],
+            "number": target_number,
+            "reason": "Pure-LTE CSFB Handover Refused (Manual Lore Inspection)",
+            "narrative": TRAGIC_VOICE_LORE["narrative"],
+            "timestamp": time.time(),
+        })
 
     # -----------------------------------------------------------------------
     # Polling Control

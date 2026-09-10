@@ -172,7 +172,8 @@ ApplicationWindow {
                             { index: 0, label: "Dashboard", icon: "📊", desc: "Overview & Controls" },
                             { index: 1, label: "Wi-Fi Hotspot", icon: "📶", desc: "Co-Processor SoftAP" },
                             { index: 2, label: "SMS Center", icon: "💬", desc: "Conversations & Ingest" },
-                            { index: 3, label: "Diagnostics", icon: "⚡", desc: "AT Console & Ports" }
+                            { index: 3, label: "Phone Dialer", icon: "📞", desc: "Voice & PipeWire" },
+                            { index: 4, label: "Diagnostics", icon: "⚡", desc: "AT Console & Ports" }
                         ]
 
                         Rectangle {
@@ -293,6 +294,10 @@ ApplicationWindow {
 
                     SmsView {
                         id: smsView
+                    }
+
+                    DialerView {
+                        id: dialerView
                     }
 
                     DiagnosticsView {
