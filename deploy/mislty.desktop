@@ -1,0 +1,26 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MisLTy
+GenericName=Cellular Modem Manager
+Comment=Qualcomm MDM9600 (Aleka UV310) 4G LTE Desktop Suite
+Exec=mislty gui
+Icon=mislty
+Terminal=false
+Categories=Network;Telephony;Dialup;
+Keywords=modem;cellular;4g;lte;wifi;hotspot;sms;dialer;qualcomm;mdm9600;
+StartupNotify=true
+StartupWMClass=mislty
+Actions=Connect;Disconnect;PocketRouter;
+
+[Desktop Action Connect]
+Name=Connect Cellular Data
+Exec=mislty connect
+
+[Desktop Action Disconnect]
+Name=Disconnect Cellular Data
+Exec=mislty disconnect
+
+[Desktop Action PocketRouter]
+Name=Switch to Pocket Router
+Exec=mislty wifi on

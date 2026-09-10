@@ -10,3 +10,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 # Ensure headless Qt offscreen platform and disable GLib hijacking in Qt
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ["QT_NO_GLIB"] = "1"
+
+try:
+    from PySide6.QtWidgets import QApplication
+    _app = QApplication.instance()
+    if _app is None:
+        _app = QApplication(["--platform", "offscreen"])
+except (ImportError, Exception):
+    pass
+

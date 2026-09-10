@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Purrfect Software Limited</vendor>
+  <vendor_url>https://purrfect.software</vendor_url>
+  <icon_name>mislty</icon_name>
+
+  <action id="software.purrfect.mislty.net-helper">
+    <description>Execute MisLTy Privileged Network Helper</description>
+    <message>Authentication is required to configure network namespaces, cellular routing, and aux Wi-Fi interfaces.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/mislty-net-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">false</annotate>
+  </action>
+</policyconfig>

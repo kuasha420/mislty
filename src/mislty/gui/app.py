@@ -26,6 +26,7 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtGui import QGuiApplication, QIcon
+from PySide6.QtWidgets import QApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
 from mislty.audio.pcm_bridge import TelephonyEngine, play_dtmf_tone, TRAGIC_VOICE_LORE
@@ -1003,7 +1004,7 @@ class MisltyBridge(QObject):
 def create_app(
     client: Optional[MisltyClient] = None,
     argv: Optional[List[str]] = None,
-) -> tuple[QGuiApplication, QQmlApplicationEngine, MisltyBridge]:
+) -> tuple[QApplication, QQmlApplicationEngine, MisltyBridge]:
     """
     Bootstrap the PySide6 application engine, bridge, and QML view stack.
     """
@@ -1012,9 +1013,9 @@ def create_app(
 
     # High-DPI scaling configuration and GLib isolation
     os.environ.setdefault("QT_NO_GLIB", "1")
-    app = QGuiApplication.instance()
+    app = QApplication.instance()
     if app is None:
-        app = QGuiApplication(argv)
+        app = QApplication(argv)
         app.setOrganizationName("Purrfect Software Limited")
         app.setOrganizationDomain("purrfect.software")
         app.setApplicationName("MisLTy")
