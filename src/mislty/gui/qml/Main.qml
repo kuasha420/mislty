@@ -257,10 +257,14 @@ ApplicationWindow {
                         spacing: 2
 
                         Text {
-                            text: "Host Links: ppp0 / wlan1"
+                            text: {
+                                var wanText = (bridge?.connected ?? false) ? "WAN: ppp0 (LTE)" : "WAN: Standby";
+                                var relayText = (bridge?.relayActive ?? false) ? (" • AP: " + (bridge?.relayInterface ?? "Active")) : "";
+                                return wanText + relayText;
+                            }
                             font.family: Theme.fontMono
                             font.pixelSize: Theme.fontSizeSmall
-                            color: Theme.colorGold
+                            color: (bridge?.connected ?? false) ? Theme.colorGold : Theme.textMuted
                         }
 
                         Text {
