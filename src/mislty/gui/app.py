@@ -28,6 +28,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 
+from mislty.core.sms import calculate_sms_segments, send_desktop_notification
 from mislty.ipc.client import MisltyClient
 
 logger = logging.getLogger("mislty.gui")
@@ -71,6 +72,7 @@ class MisltyBridge(QObject):
     isSwitchingModeChanged = Signal(bool)
     smsThreadsChanged = Signal(list)
     smsMessagesChanged = Signal(list)
+    smsReceived = Signal(str, str)
 
     def __init__(
         self,
@@ -810,6 +812,67 @@ class MisltyBridge(QObject):
 
         threading.Thread(target=_worker, daemon=True).start()
         return []
+
+    @Slot(str, result="QVariant")
+    def calculateSmsSegments(self, text: str) -> dict:
+        """Calculate character usage, multi-part segments, and GSM/UCS-2 encoding."""
+        return calculate_sms_segments(text)
+
+    @Slot(int, result=bool)
+    def deleteThread(self, thread_id: int) -> bool:
+        """Delete an entire SMS conversation thread and its messages."""
+        try:
+            res = self._client.delete_sms_thread(thread_id)
+            if res.get("success"):
+                self.statusMessage = f"Conversation #{thread_id} deleted."
+                self.getSmsThreads()
+                self.smsMessages = []
+                return True
+            return False
+        except Exception as exc:
+            logger.error("Failed to delete SMS thread: %s", exc)
+            self.statusMessage = f"Delete error: {exc}"
+            return False
+
+    @Slot(int, result=bool)
+    def markAsRead(self, thread_id: int) -> bool:
+        """Mark SMS conversation thread messages as read."""
+        try:
+            res = self._client.mark_sms_read(thread_id)
+            if res.get("success"):
+                self.getSmsThreads()
+                return True
+            return False
+        except Exception as exc:
+            logger.debug("Failed to mark SMS thread as read: %s", exc)
+            return False
+
+    @Slot(str)
+    def copyToClipboard(self, text: str) -> None:
+        """Copy arbitrary string to desktop clipboard."""
+        try:
+            clipboard = QGuiApplication.clipboard()
+            if clipboard:
+                clipboard.setText(text)
+        except Exception as exc:
+            logger.error("Failed to copy text to clipboard: %s", exc)
+
+    @Slot(str, str, result=bool)
+    def sendNotification(self, title: str, message: str) -> bool:
+        """Dispatch a Freedesktop desktop notification."""
+        return send_desktop_notification(title=title, message=message)
+
+    @Slot(str, str)
+    def onSmsReceived(self, sender: str, body: str) -> None:
+        """Handle spontaneous inbound SMS arrival."""
+        logger.info("Inbound SMS received from %s: %s", sender, body[:30])
+        send_desktop_notification(
+            title=f"New SMS from {sender}",
+            message=body[:140],
+            icon="mail-unread",
+        )
+        self.smsReceived.emit(sender, body)
+        self.getSmsThreads()
 
     # -----------------------------------------------------------------------
     # Polling Control

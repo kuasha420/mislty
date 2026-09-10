@@ -453,6 +453,18 @@ class DaemonEngine:
             messages = self.sms_store.reconcile_sim_inbox(self.dispatcher, purge_sim=purge_sim)
             return [m.as_dict() for m in messages]
 
+    def delete_sms_thread(self, thread_id: int) -> Dict[str, Any]:
+        """Delete an entire conversation thread and all its messages."""
+        with self.shared_lock:
+            ok = self.sms_store.delete_thread(thread_id)
+            return {"success": ok, "thread_id": thread_id}
+
+    def mark_sms_read(self, thread_id: int) -> Dict[str, Any]:
+        """Mark all messages in thread as read."""
+        with self.shared_lock:
+            self.sms_store.mark_thread_read(thread_id)
+            return {"success": True, "thread_id": thread_id}
+
     def execute_at(self, command: str, timeout: float = 3.0) -> Dict[str, Any]:
         """Execute raw AT command on modem control channel under lock."""
         with self.shared_lock:

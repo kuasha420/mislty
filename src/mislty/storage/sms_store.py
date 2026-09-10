@@ -286,6 +286,7 @@ class SmsStore:
         conn = self.db.get_connection()
         with conn:
             cursor = conn.cursor()
+            cursor.execute("DELETE FROM messages WHERE thread_id = ?;", (thread_id,))
             cursor.execute("DELETE FROM threads WHERE id = ?;", (thread_id,))
             return cursor.rowcount > 0
 

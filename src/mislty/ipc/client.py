@@ -470,6 +470,44 @@ class MisltyClient:
 
         return self._direct_execute(_sync)
 
+    def delete_sms_thread(self, thread_id: int) -> Dict[str, Any]:
+        """Delete an entire SMS conversation thread."""
+        if self.active_transport == self.TRANSPORT_SOCKET:
+            return self._call_socket("delete_sms_thread", {"thread_id": thread_id})
+        elif self.active_transport == self.TRANSPORT_DBUS:
+            return self._call_dbus("DeleteThread", int(thread_id))
+
+        # Direct fallback
+        from mislty.storage.database import DatabaseManager
+        from mislty.storage.sms_store import SmsStore
+
+        db = DatabaseManager()
+        sms = SmsStore(db)
+        try:
+            ok = sms.delete_thread(thread_id)
+            return {"success": ok, "thread_id": thread_id}
+        finally:
+            db.close()
+
+    def mark_sms_read(self, thread_id: int) -> Dict[str, Any]:
+        """Mark SMS thread messages as read."""
+        if self.active_transport == self.TRANSPORT_SOCKET:
+            return self._call_socket("mark_sms_read", {"thread_id": thread_id})
+        elif self.active_transport == self.TRANSPORT_DBUS:
+            return self._call_dbus("MarkThreadRead", int(thread_id))
+
+        # Direct fallback
+        from mislty.storage.database import DatabaseManager
+        from mislty.storage.sms_store import SmsStore
+
+        db = DatabaseManager()
+        sms = SmsStore(db)
+        try:
+            sms.mark_thread_read(thread_id)
+            return {"success": True, "thread_id": thread_id}
+        finally:
+            db.close()
+
     def execute_at(self, command: str, timeout: float = 3.0) -> Dict[str, Any]:
         """Execute raw AT command transaction."""
         if self.active_transport == self.TRANSPORT_SOCKET:

@@ -222,6 +222,16 @@ class DbusService:
                     res = inner_self.dispatcher.dispatch("sync_sms", {"purge_sim": bool(purge_sim)})
                     return json.dumps(res)
 
+                @dbus.service.method(DbusService.INTERFACE_NAME, in_signature="x", out_signature="s")
+                def DeleteThread(inner_self, thread_id: int) -> str:
+                    res = inner_self.dispatcher.dispatch("delete_sms_thread", {"thread_id": int(thread_id)})
+                    return json.dumps(res)
+
+                @dbus.service.method(DbusService.INTERFACE_NAME, in_signature="x", out_signature="s")
+                def MarkThreadRead(inner_self, thread_id: int) -> str:
+                    res = inner_self.dispatcher.dispatch("mark_sms_read", {"thread_id": int(thread_id)})
+                    return json.dumps(res)
+
                 @dbus.service.method(DbusService.INTERFACE_NAME, in_signature="s", out_signature="s")
                 def ExecuteAt(inner_self, command: str) -> str:
                     res = inner_self.dispatcher.dispatch("at", {"command": str(command)})

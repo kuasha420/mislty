@@ -56,6 +56,8 @@ class IpcDispatcher:
             "send_sms": self._handle_send_sms,
             "list_sms": self._handle_list_sms,
             "sync_sms": self._handle_sync_sms,
+            "delete_sms_thread": self._handle_delete_sms_thread,
+            "mark_sms_read": self._handle_mark_sms_read,
             "at": self._handle_at,
             "ping": self._handle_ping,
         }
@@ -130,6 +132,12 @@ class IpcDispatcher:
 
     def _handle_sync_sms(self, purge_sim: bool = True) -> List[Dict[str, Any]]:
         return self.engine.sync_sms(purge_sim=purge_sim)
+
+    def _handle_delete_sms_thread(self, thread_id: int) -> Dict[str, Any]:
+        return self.engine.delete_sms_thread(int(thread_id))
+
+    def _handle_mark_sms_read(self, thread_id: int) -> Dict[str, Any]:
+        return self.engine.mark_sms_read(int(thread_id))
 
     def _handle_at(self, command: str, timeout: float = 3.0) -> Dict[str, Any]:
         return self.engine.execute_at(command, timeout=timeout)
