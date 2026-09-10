@@ -66,13 +66,13 @@ Item {
                     }
 
                     Repeater {
-                        model: ["AT+CSQ", "AT+COPS?", "AT+CPIN?", "AT+CGMI", "AT$MYWIFI?"]
+                        model: ["AT+CSQ", "AT+COPS?", "AT+CEREG?", "AT+CPIN?", "AT+CGMI", "AT$MYWIFI?"]
                         FelineButton {
                             required property string modelData
                             text: modelData
                             variant: "outline"
                             implicitHeight: 26
-                            implicitWidth: 72
+                            implicitWidth: 78
                             onClicked: {
                                 atInput.text = modelData;
                                 sendCommand(modelData);

@@ -110,10 +110,10 @@ Item {
 
                     // Radio Power Toggle Action
                     FelineButton {
-                        text: (bridge?.wifiPower ?? false) ? "Power Off" : "Power On"
+                        text: (bridge?.wifiPower ?? false) ? "Disable Hotspot" : "Enable Hotspot"
                         variant: (bridge?.wifiPower ?? false) ? "danger" : "gold"
                         iconGlyph: "⚡"
-                        implicitWidth: 125
+                        implicitWidth: 145
                         implicitHeight: 40
                         onClicked: {
                             if (typeof bridge !== "undefined" && bridge) {
@@ -174,7 +174,7 @@ Item {
                                     color: ((bridge?.operationalMode ?? "usb_modem") === "usb_modem") ? Theme.colorCyan : Theme.textPrimary
                                 }
                                 Text {
-                                    text: "Host direct ppp0 dialup • 57.9ms ultra-low latency • Full Linux desktop integration"
+                                    text: "Host direct ppp0 dialup • Native kernel network interface • Full Linux desktop routing"
                                     font.family: Theme.fontSans
                                     font.pixelSize: Theme.fontSizeSmall
                                     color: Theme.textSecondary
@@ -339,7 +339,7 @@ Item {
                                 ComboBox {
                                     id: channelBox
                                     anchors.fill: parent
-                                    model: ["Ch 11 (2.46 GHz)", "Ch 6 (2.43 GHz)", "Ch 1 (2.41 GHz)", "Ch 0 (Auto)"]
+                                    model: ["Ch 11 (2.462 GHz)", "Ch 6 (2.437 GHz)", "Ch 1 (2.412 GHz)", "Auto (Adaptive)"]
                                     currentIndex: 0
                                     background: Rectangle { color: "transparent" }
                                     contentItem: TextEdit {

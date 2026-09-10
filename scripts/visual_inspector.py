@@ -64,7 +64,7 @@ class MockVisualBridge(QObject):
         self._connected = True
         self._connecting = False
         self._operator = "Robi Axiata"
-        self._technology = "LTE 4G (B3 / 1800 MHz)"
+        self._technology = "4G LTE (B3 / 1800 MHz)"
         self._signal_bars = 4
         self._signal_csq = 28
         self._signal_dbm = -57

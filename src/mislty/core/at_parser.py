@@ -238,8 +238,17 @@ class AtParser:
                 terminal_status = line
                 break
 
+            # Check if line is the solicited response to the current command
+            clean_cmd = clean_command.upper()
+            if clean_cmd.startswith("AT"):
+                clean_cmd = clean_cmd[2:]
+            cmd_prefix = clean_cmd.split("=")[0].split("?")[0].strip()
+            is_solicited = False
+            if cmd_prefix and line.upper().startswith(cmd_prefix):
+                is_solicited = True
+
             # Filter URCs
-            if is_urc(line):
+            if is_urc(line) and not is_solicited:
                 if self.urc_callback:
                     try:
                         self.urc_callback(line)

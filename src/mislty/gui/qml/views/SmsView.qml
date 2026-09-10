@@ -112,10 +112,10 @@ Item {
                     }
 
                     FelineButton {
-                        text: "New"
+                        text: "New Message"
                         variant: "secondary"
                         iconGlyph: "✏️"
-                        implicitWidth: 80
+                        implicitWidth: 115
                         implicitHeight: 34
                         onClicked: {
                             root.activeThreadId = -1;
@@ -297,7 +297,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         visible: threadsList.count === 0
-                        text: searchInput.text.length > 0 ? "No conversations match filter." : "No SMS threads yet.\nClick 'Sync SIM' to ingest."
+                        text: searchInput.text.length > 0 ? "No conversations match filter." : "No SMS threads yet.\nClick 'Sync SIM' to retrieve messages from SIM card."
                         font.family: Theme.fontSans
                         font.pixelSize: Theme.fontSizeCaption
                         color: Theme.textMuted
@@ -367,6 +367,7 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
+                                    bridge.activeCallNumber = root.activeRecipient;
                                     bridge.activeDeck = 3; // Switch to Dialer deck
                                 }
                             }
@@ -503,7 +504,7 @@ Item {
                                 }
 
                                 Text {
-                                    text: "+8801... or MSISDN"
+                                    text: "Phone number (e.g. +8801...)"
                                     visible: !recipientInput.text
                                     color: Theme.textMuted
                                     font.family: Theme.fontMono

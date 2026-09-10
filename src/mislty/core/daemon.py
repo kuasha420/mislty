@@ -23,6 +23,7 @@ from mislty.core.at_parser import AtCommand, AtDispatcher
 from mislty.core.port_resolver import ModemPorts, PortResolver
 from mislty.core.serial_transport import PortBusyError, PortNotFoundError, SerialTransport, SerialTransportError
 from mislty.core.urc_demuxer import (
+    ACT_MAP,
     ModeChangeEvent,
     NetworkRegistrationEvent,
     SignalChangeEvent,
@@ -122,13 +123,23 @@ class DaemonEngine:
         logger.info("URC Mode: %s", evt.technology)
 
     def _on_sysinfo_urc(self, evt: SysinfoEvent) -> None:
+        # Prevent legacy Qualcomm ^SYSINFO CS-domain code (e.g. sys_mode=5) from downgrading 4G LTE
+        if self.state.technology == "4G LTE" and evt.technology in ("WCDMA", "WCDMA/HSPA"):
+            logger.debug("Preserving 4G LTE state over legacy ^SYSINFO CS-domain mode %s", evt.technology)
+            return
         self.state.technology = evt.technology
         self.dbus_service.emit_mode_changed(evt.technology)
         logger.debug("URC Sysinfo: RAT=%s, srv_status=%d", evt.technology, evt.srv_status)
 
     def _on_net_urc(self, evt: NetworkRegistrationEvent) -> None:
         self.state.registration_status = evt.status
-        logger.info("URC Network: %s status=%d (registered=%s)", evt.domain, evt.status, evt.is_registered)
+        if evt.technology:
+            self.state.technology = evt.technology
+            self.dbus_service.emit_mode_changed(evt.technology)
+        elif evt.domain == "EPS" and evt.is_registered:
+            self.state.technology = "4G LTE"
+            self.dbus_service.emit_mode_changed("4G LTE")
+        logger.info("URC Network: %s status=%d (registered=%s, tech=%s)", evt.domain, evt.status, evt.is_registered, self.state.technology)
 
     def _on_sms_urc(self, evt: SmsReceivedEvent) -> None:
         logger.info("URC SMS arrival: storage=%s index=%d", evt.storage, evt.index)
@@ -243,7 +254,7 @@ class DaemonEngine:
                         self.state.dbm = None
                         self.state.bars = 0
 
-            # 2. Operator info (AT+COPS?)
+            # 2. Operator info & 3GPP RAT (AT+COPS?)
             resp_cops = self.dispatcher.execute("AT+COPS?", timeout=1.5)
             if resp_cops.success and resp_cops.value:
                 # Format: +COPS: <mode>,<format>,"<oper>",<act>
@@ -252,17 +263,42 @@ class DaemonEngine:
                     oper_clean = cops_parts[2].strip(' "')
                     if oper_clean:
                         self.state.carrier = oper_clean
+                if len(cops_parts) >= 4:
+                    act_str = cops_parts[3].strip()
+                    if act_str.isdigit():
+                        act_code = int(act_str)
+                        act_tech = ACT_MAP.get(act_code)
+                        if act_tech:
+                            self.state.technology = act_tech
 
-            # 3. Registration (AT+CREG?)
+            # 3. Registration (AT+CEREG? and AT+CREG?)
+            resp_cereg = self.dispatcher.execute("AT+CEREG?", timeout=1.5)
+            if resp_cereg.success and resp_cereg.value:
+                # Format: +CEREG: <n>,<stat>[,<tac>,<rac>,<ci>,<act>]
+                cereg_parts = [p.strip().strip('"') for p in resp_cereg.value.replace("+CEREG:", "").strip().split(",")]
+                if len(cereg_parts) >= 2 and cereg_parts[1].isdigit():
+                    eps_stat = int(cereg_parts[1])
+                    if eps_stat in (1, 5):
+                        self.state.registration_status = eps_stat
+                        if not self.state.technology or self.state.technology in ("SEARCHING", "NO SERVICE", "UNKNOWN"):
+                            self.state.technology = "4G LTE"
+                if len(cereg_parts) >= 5 and cereg_parts[-1].isdigit():
+                    act_code = int(cereg_parts[-1])
+                    act_tech = ACT_MAP.get(act_code)
+                    if act_tech:
+                        self.state.technology = act_tech
+
             resp_creg = self.dispatcher.execute("AT+CREG?", timeout=1.5)
             if resp_creg.success and resp_creg.value:
                 # Format: +CREG: <n>,<stat>
-                creg_parts = resp_creg.value.replace("+CREG:", "").strip().split(",")
+                creg_parts = [p.strip().strip('"') for p in resp_creg.value.replace("+CREG:", "").strip().split(",")]
                 if len(creg_parts) >= 2 and creg_parts[1].isdigit():
-                    self.state.registration_status = int(creg_parts[1])
+                    if self.state.registration_status not in (1, 5):
+                        self.state.registration_status = int(creg_parts[1])
 
-            # 4. System info / RAT (AT^SYSINFO)
-            self.dispatcher.execute("AT^SYSINFO", timeout=1.5)
+            # 4. Fallback System info / RAT (AT^SYSINFO) only if technology not yet determined
+            if not self.state.technology or self.state.technology in ("SEARCHING", "NO SERVICE", "UNKNOWN"):
+                self.dispatcher.execute("AT^SYSINFO", timeout=1.5)
 
             self.state.last_poll_time = time.time()
 

@@ -56,6 +56,22 @@ class CallTerminatedEvent(UrcEvent):
     reason: str = "NO CARRIER"
 
 
+# 3GPP TS 27.007 Radio Access Technology (AcT) Table
+ACT_MAP: Dict[int, str] = {
+    0: "GSM",
+    1: "GSM Compact",
+    2: "3G UMTS",
+    3: "EDGE",
+    4: "3G HSDPA",
+    5: "3G HSUPA",
+    6: "3G HSPA+",
+    7: "4G LTE",
+    8: "EC-GSM-IoT",
+    9: "5G NSA",
+    10: "5G SA",
+}
+
+
 @dataclass
 class NetworkRegistrationEvent(UrcEvent):
     """
@@ -83,6 +99,15 @@ class NetworkRegistrationEvent(UrcEvent):
     def is_roaming(self) -> bool:
         """True if attached on a roaming partner network."""
         return self.status == 5
+
+    @property
+    def technology(self) -> Optional[str]:
+        """Human-readable RAT derived from 3GPP AcT or EPS domain attachment."""
+        if self.act is not None:
+            return ACT_MAP.get(self.act, f"AcT_{self.act}")
+        if self.domain == "EPS" and self.is_registered:
+            return "4G LTE"
+        return None
 
 
 @dataclass
@@ -262,21 +287,34 @@ class UrcDemuxer:
             return CallTerminatedEvent(raw_line=line, reason=m_term.group(1))
 
         # 5. Network Registration: +CEREG, +CGREG, +CREG
-        m_reg = re.match(r'^\+(CEREG|CGREG|CREG):\s*(\d+)(?:,\s*(\d+))?(?:,\s*"([0-9a-fA-F]+)")?(?:,\s*"([0-9a-fA-F]+)")?(?:,\s*(\d+))?', line)
+        m_reg = re.match(r'^\+(CEREG|CGREG|CREG):\s*(.+)$', line)
         if m_reg:
             prefix = m_reg.group(1)
             domain = "EPS" if prefix == "CEREG" else ("PS" if prefix == "CGREG" else "CS")
-            # Format can be either (<stat>) or (<n>, <stat>)
-            if m_reg.group(3) is not None:
-                status = int(m_reg.group(3))
-                lac = m_reg.group(4)
-                ci = m_reg.group(5)
-                act = int(m_reg.group(6)) if m_reg.group(6) else None
-            else:
-                status = int(m_reg.group(2))
-                lac = m_reg.group(4)
-                ci = m_reg.group(5)
-                act = int(m_reg.group(6)) if m_reg.group(6) else None
+            tokens = [t.strip().strip('"') for t in m_reg.group(2).split(",")]
+            status = 0
+            lac = None
+            ci = None
+            act = None
+
+            if len(tokens) == 1 and tokens[0].isdigit():
+                status = int(tokens[0])
+            elif len(tokens) >= 2:
+                if tokens[1].isdigit():
+                    status = int(tokens[1])
+                elif tokens[0].isdigit():
+                    status = int(tokens[0])
+
+                # Check for AcT (last parameter in standard 3GPP CREG/CEREG with location info)
+                if len(tokens) >= 5 and tokens[-1].isdigit():
+                    act = int(tokens[-1])
+
+                if len(tokens) >= 3 and tokens[2]:
+                    lac = tokens[2]
+                if len(tokens) >= 4 and tokens[3]:
+                    ci = tokens[3]
+                if len(tokens) >= 5 and tokens[4] and not ci:
+                    ci = tokens[4]
 
             return NetworkRegistrationEvent(
                 raw_line=line,

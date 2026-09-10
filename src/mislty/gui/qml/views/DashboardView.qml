@@ -141,7 +141,7 @@ Item {
                         text: {
                             if (bridge?.connecting ?? false) return "Connecting...";
                             if (bridge?.connected ?? false) return "Disconnect";
-                            return "Connect Cellular";
+                            return "Connect Data";
                         }
                         variant: (bridge?.connected ?? false) ? "danger" : "primary"
                         iconGlyph: (bridge?.connected ?? false) ? "⏹" : "▶"
@@ -285,7 +285,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
                     title: "Live Bandwidth & Throughput"
-                    subtitle: "Real-time packet speedometers"
+                    subtitle: "Real-time interface throughput (ppp0)"
 
                     ColumnLayout {
                         Layout.fillWidth: true
