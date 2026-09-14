@@ -31,7 +31,7 @@ from mislty.gui.app import MisltyBridge
 logger = logging.getLogger("mislty.tray")
 
 
-def create_feline_signal_icon(bars: int, connected: bool = False, size: int = 32) -> QIcon:
+def create_feline_signal_icon(bars: int, connected: bool = False, size: int = 32, offline: bool = False) -> QIcon:
     """
     Render a scalable 5-bar feline RF signal strength icon with real-time
     cellular connection status indicator.
@@ -50,7 +50,7 @@ def create_feline_signal_icon(bars: int, connected: bool = False, size: int = 32
     baseline_y = int(size * 0.82)
 
     active_color = QColor("#00f0ff") if connected else QColor("#f39c12")
-    inactive_color = QColor("#252b40")
+    inactive_color = QColor(40, 45, 60, 120) if offline else QColor("#252b40")
 
     for i in range(5):
         bar_num = i + 1
@@ -58,7 +58,7 @@ def create_feline_signal_icon(bars: int, connected: bool = False, size: int = 32
         x = start_x + i * (bar_width + gap)
         y = baseline_y - bar_h
 
-        color = active_color if bar_num <= bars else inactive_color
+        color = active_color if (not offline and bar_num <= bars) else inactive_color
         painter.setBrush(QBrush(color))
         painter.setPen(Qt.NoPen)
         painter.drawRoundedRect(x, y, bar_width, bar_h, 1.5, 1.5)
@@ -68,7 +68,7 @@ def create_feline_signal_icon(bars: int, connected: bool = False, size: int = 32
     dot_x = size - dot_radius * 2 - 2
     dot_y = size - dot_radius * 2 - 2
 
-    dot_color = QColor("#00e676") if connected else QColor("#ff3366")
+    dot_color = QColor("#ff4b4b") if offline else (QColor("#00e676") if connected else QColor("#ff3366"))
     painter.setBrush(QBrush(dot_color))
     painter.setPen(QPen(QColor("#0c0e14"), 1))
     painter.drawEllipse(dot_x, dot_y, dot_radius * 2, dot_radius * 2)
@@ -146,6 +146,7 @@ class MisltyTray(QObject):
         self.bridge.technologyChanged.connect(self._on_state_changed)
         self.bridge.operationalModeChanged.connect(self._on_mode_changed)
         self.bridge.smsReceived.connect(self._on_sms_received)
+        self.bridge.modemPresentChanged.connect(self._on_state_changed)
 
         # Left click activation
         self._tray_icon.activated.connect(self._on_tray_activated)
@@ -161,12 +162,27 @@ class MisltyTray(QObject):
     @Slot()
     def update_icon(self) -> None:
         """Re-render tray icon with current telemetry."""
+        is_pres = self.bridge.modemPresent
         bars = self.bridge.signalBars
         conn = self.bridge.connected
-        icon = create_feline_signal_icon(bars=bars, connected=conn)
+        icon = create_feline_signal_icon(bars=bars, connected=conn, offline=not is_pres)
         self._tray_icon.setIcon(icon)
 
-        # Update Tooltip
+        # Update Tooltip and Actions
+        if not is_pres:
+            tip = "MisLTy: Hardware Disconnected\nQualcomm MDM9600 USB modem unplugged"
+            self._tray_icon.setToolTip(tip)
+            self._status_action.setText("Hardware: Disconnected")
+            self._connect_action.setText("Modem Unplugged")
+            self._connect_action.setEnabled(False)
+            self._mode_action.setEnabled(False)
+            self._webui_action.setEnabled(False)
+            return
+
+        self._connect_action.setEnabled(True)
+        self._mode_action.setEnabled(True)
+        self._webui_action.setEnabled(True)
+
         op = self.bridge.operator
         rat = self.bridge.technology
         conn_str = "Connected" if conn else "Disconnected"

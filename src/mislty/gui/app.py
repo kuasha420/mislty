@@ -111,8 +111,8 @@ class MisltyBridge(QObject):
         # Telemetry State Properties
         self._connected: bool = False
         self._connecting: bool = False
-        self._operator: str = "Searching..."
-        self._technology: str = "4G LTE"
+        self._operator: str = "No Modem Detected"
+        self._technology: str = "OFFLINE"
         self._signal_bars: int = 0
         self._signal_csq: int = 0
         self._signal_dbm: int = -113
@@ -1371,6 +1371,7 @@ def create_app(
 
     # High-DPI scaling configuration and GLib isolation
     os.environ.setdefault("QT_NO_GLIB", "1")
+    os.environ["QML_DISABLE_DISK_CACHE"] = "1"
     app = QApplication.instance()
     if app is None:
         app = QApplication(argv)
@@ -1392,6 +1393,9 @@ def create_app(
     root_objects = engine.rootObjects()
     if not root_objects:
         raise RuntimeError("Failed to load QML root object from Main.qml")
+
+    # Start periodic background telemetry polling
+    bridge.start_polling(interval_ms=1500)
 
     try:
         from mislty.gui.tray import MisltyTray
