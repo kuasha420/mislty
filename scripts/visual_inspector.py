@@ -58,6 +58,11 @@ class MockVisualBridge(QObject):
     smsThreadsChanged = Signal()
     smsMessagesChanged = Signal()
     wifiStationsChanged = Signal()
+    rsrpChanged = Signal(str)
+    rsrqChanged = Signal(str)
+    rssiChanged = Signal(str)
+    sinrChanged = Signal(str)
+    bandNameChanged = Signal(str)
 
     modemPresentChanged = Signal(bool)
     modemReadyChanged = Signal(bool)
@@ -73,6 +78,17 @@ class MockVisualBridge(QObject):
     relayUptimeChanged = Signal(int)
     relayClientsChanged = Signal(list)
     relayWanInterfaceChanged = Signal(str)
+    relayBusyChanged = Signal(bool)
+    isScanningDevicesChanged = Signal(bool)
+    isSwitchingModeChanged = Signal(bool)
+    isSyncingSmsChanged = Signal(bool)
+    isSendingSmsChanged = Signal(bool)
+    isTogglingWifiChanged = Signal(bool)
+    isSavingWifiConfigChanged = Signal(bool)
+    totalBytesTransferredChanged = Signal(int)
+    dnsServersFormattedChanged = Signal(str)
+    trafficHistoryRxChanged = Signal(list)
+    trafficHistoryTxChanged = Signal(list)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -109,6 +125,13 @@ class MockVisualBridge(QObject):
         self._call_status = "IDLE"
         self._call_duration = 0
         self._tragic_modal = False
+        self._is_syncing_sms = False
+        self._is_sending_sms = False
+        self._is_toggling_wifi = False
+        self._is_saving_wifi_config = False
+        self._is_switching_mode = False
+        self._relay_busy = False
+        self._is_scanning_devices = False
 
         # Bandwidth rolling history
         self._rx_history = [120, 340, 560, 890, 1200, 1500, 1300, 900, 1100, 1400, 1800, 2100,
@@ -274,6 +297,80 @@ class MockVisualBridge(QObject):
 
     @Property(str, notify=hardwareStateTextChanged)
     def hardwareStateText(self): return self._hardware_state_text
+
+    @Property(str, notify=signalDbmChanged)
+    def rsrp(self):
+        if not self._modem_present or self._signal_dbm <= -113:
+            return "—"
+        return f"{self._signal_dbm - 14} dBm"
+
+    @Property(str, notify=signalCsqChanged)
+    def rsrq(self):
+        if not self._modem_present or self._signal_csq <= 0:
+            return "—"
+        return "-25 dB"
+
+    @Property(str, notify=signalDbmChanged)
+    def rssi(self):
+        if not self._modem_present or self._signal_dbm <= -113:
+            return "—"
+        return f"{self._signal_dbm} dBm"
+
+    @Property(str, notify=signalCsqChanged)
+    def sinr(self):
+        if not self._modem_present or self._signal_csq <= 0:
+            return "—"
+        return "12.63"
+
+    @Property(str, notify=technologyChanged)
+    def bandName(self):
+        if not self._modem_present:
+            return "No Band"
+        return "Band 3"
+
+    @Property(int, notify=rxBytesChanged)
+    def totalBytesTransferred(self):
+        return self._rx_bytes + self._tx_bytes
+
+    @Property(str, notify=dnsServersChanged)
+    def dnsServersFormatted(self):
+        return ", ".join(self._dns_servers) if self._dns_servers else "Auto Assigned"
+
+    @Property(bool, notify=isSyncingSmsChanged)
+    def isSyncingSms(self):
+        return self._is_syncing_sms
+
+    @Property(bool, notify=isSendingSmsChanged)
+    def isSendingSms(self):
+        return self._is_sending_sms
+
+    @Property(bool, notify=isTogglingWifiChanged)
+    def isTogglingWifi(self):
+        return self._is_toggling_wifi
+
+    @Property(bool, notify=isSavingWifiConfigChanged)
+    def isSavingWifiConfig(self):
+        return self._is_saving_wifi_config
+
+    @Property(bool, notify=isSwitchingModeChanged)
+    def isSwitchingMode(self):
+        return self._is_switching_mode
+
+    @Property(bool, notify=relayBusyChanged)
+    def relayBusy(self):
+        return self._relay_busy
+
+    @Property(bool, notify=isScanningDevicesChanged)
+    def isScanningDevices(self):
+        return self._is_scanning_devices
+
+    @Property(list, notify=trafficHistoryRxChanged)
+    def trafficHistoryRx(self):
+        return self._rx_history
+
+    @Property(list, notify=trafficHistoryTxChanged)
+    def trafficHistoryTx(self):
+        return self._tx_history
 
     # Slots called from QML
     @Slot(int)

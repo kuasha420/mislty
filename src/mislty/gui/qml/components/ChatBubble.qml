@@ -106,7 +106,7 @@ Item {
                         Text {
                             id: statusText
                             anchors.centerIn: parent
-                            text: root.isFailed ? "FAILED" : (root.status.toUpperCase() === "DELIVERED" ? "✓✓ DELIVERED" : "✓ SENT")
+                            text: root.isFailed ? "FAILED" : (root.status.toUpperCase() === "DELIVERED" ? "DELIVERED" : "SENT")
                             font.family: Theme.fontMono
                             font.pixelSize: 9
                             font.weight: Font.Bold
@@ -137,14 +137,14 @@ Item {
                     Rectangle {
                         width: 22
                         height: 22
-                        radius: 4
-                        color: copyHover.containsMouse ? Theme.colorSurface : "transparent"
+                        radius: Theme.radiusSm
+                        color: copyHover.containsMouse ? Theme.colorRaised : "transparent"
 
-                        Text {
+                        Icon {
                             anchors.centerIn: parent
-                            text: "📋"
-                            font.pixelSize: 11
-                            opacity: copyHover.containsMouse ? 1.0 : 0.6
+                            name: "copy"
+                            size: 13
+                            color: copyHover.containsMouse ? Theme.colorCyan : Theme.textMuted
                         }
 
                         MouseArea {

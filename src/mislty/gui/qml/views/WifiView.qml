@@ -41,7 +41,7 @@ Item {
                     anchors.margins: Theme.spacingMd
                     spacing: Theme.spacingSm
 
-                    Text { text: "🔌"; font.pixelSize: 18 }
+                    Icon { name: "plug"; size: 16; color: Theme.colorDanger }
                     Text {
                         Layout.fillWidth: true
                         text: "Modem Disconnected: Integrated Broadcom Wi-Fi co-processor and GoForm AP controls are offline. Host-level Assist Hotspot Relay remains active."
@@ -63,7 +63,7 @@ Item {
                 radius: Theme.radiusLg
                 color: Theme.colorObsidian
                 border.color: !(bridge?.modemPresent ?? true)
-                              ? Qt.rgba(255, 75, 75, 0.3)
+                              ? Qt.rgba(244, 63, 94, 0.35)
                               : ((bridge?.wifiPower ?? false) ? Theme.colorBorderActive : Theme.colorBorder)
                 border.width: (bridge?.wifiPower ?? false) ? 1.5 : 1
 
@@ -80,17 +80,18 @@ Item {
                         height: 48
                         radius: Theme.radiusMd
                         color: !(bridge?.modemPresent ?? true)
-                               ? Qt.rgba(255, 75, 75, 0.1)
-                               : ((bridge?.wifiPower ?? false) ? Qt.rgba(0, 240, 255, 0.12) : Qt.rgba(121, 130, 169, 0.12))
+                               ? Qt.rgba(244, 63, 94, 0.1)
+                               : ((bridge?.wifiPower ?? false) ? Qt.rgba(56, 189, 248, 0.12) : Qt.rgba(255, 255, 255, 0.05))
                         border.color: !(bridge?.modemPresent ?? true)
-                                      ? Qt.rgba(255, 75, 75, 0.4)
+                                      ? Qt.rgba(244, 63, 94, 0.35)
                                       : ((bridge?.wifiPower ?? false) ? Theme.colorCyan : Theme.colorBorder)
                         border.width: 1
 
-                        Text {
+                        Icon {
                             anchors.centerIn: parent
-                            text: !(bridge?.modemPresent ?? true) ? "🔌" : ((bridge?.wifiPower ?? false) ? "📶" : "💤")
-                            font.pixelSize: 22
+                            name: !(bridge?.modemPresent ?? true) ? "plug" : ((bridge?.wifiPower ?? false) ? "wifi" : "power")
+                            size: 22
+                            color: !(bridge?.modemPresent ?? true) ? Theme.colorDanger : ((bridge?.wifiPower ?? false) ? Theme.colorCyan : Theme.textMuted)
                         }
                     }
 
@@ -120,8 +121,8 @@ Item {
                                 height: 20
                                 width: modeTag.implicitWidth + 12
                                 radius: Theme.radiusSm
-                                color: !(bridge?.modemPresent ?? true) ? Qt.rgba(255, 75, 75, 0.1) : Qt.rgba(0, 240, 255, 0.1)
-                                border.color: !(bridge?.modemPresent ?? true) ? Qt.rgba(255, 75, 75, 0.3) : Qt.rgba(0, 240, 255, 0.3)
+                                color: !(bridge?.modemPresent ?? true) ? Qt.rgba(244, 63, 94, 0.1) : Qt.rgba(56, 189, 248, 0.1)
+                                border.color: !(bridge?.modemPresent ?? true) ? Qt.rgba(244, 63, 94, 0.3) : Qt.rgba(56, 189, 248, 0.3)
                                 border.width: 1
 
                                 Text {
@@ -159,11 +160,13 @@ Item {
                         text: !(bridge?.modemPresent ?? true)
                               ? "Hardware Offline"
                               : ((bridge?.wifiPower ?? false) ? "Disable Hotspot" : "Enable Hotspot")
-                        variant: !(bridge?.modemPresent ?? true) ? "secondary" : ((bridge?.wifiPower ?? false) ? "danger" : "gold")
-                        iconGlyph: !(bridge?.modemPresent ?? true) ? "🔌" : "⚡"
-                        implicitWidth: 145
+                        variant: !(bridge?.modemPresent ?? true) ? "secondary" : ((bridge?.wifiPower ?? false) ? "danger" : "primary")
+                        iconName: !(bridge?.modemPresent ?? true) ? "plug" : "power"
+                        loading: bridge?.isTogglingWifi ?? false
+                        loadingText: "Toggling..."
+                        implicitWidth: 155
                         implicitHeight: 40
-                        disabled: !(bridge?.modemPresent ?? true)
+                        disabled: !(bridge?.modemPresent ?? true) || (bridge?.isTogglingWifi ?? false)
                         onClicked: {
                             if (typeof bridge !== "undefined" && bridge) {
                                 bridge.toggleWifi();
@@ -181,12 +184,14 @@ Item {
                 title: "Smart Operational Mode Switcher"
                 subtitle: !(bridge?.modemPresent ?? true)
                           ? "Modem offline — Mode switching unavailable until USB modem is connected"
-                          : "Sub-4s seamless handover between Host USB Modem and Standalone Pocket Router"
+                          : ((bridge?.isSwitchingMode ?? false) ? "Switching operational mode... Reconfiguring network stack..." : "Sub-4s seamless handover between Host USB Modem and Standalone Pocket Router")
+                iconName: "globe"
+                iconColor: Theme.colorCyan
 
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.spacingLg
-                    opacity: !(bridge?.modemPresent ?? true) ? 0.45 : 1.0
+                    opacity: (!(bridge?.modemPresent ?? true) || (bridge?.isSwitchingMode ?? false)) ? 0.45 : 1.0
 
                     // USB Modem Mode Card Option
                     Rectangle {
@@ -199,8 +204,8 @@ Item {
 
                         MouseArea {
                             anchors.fill: parent
-                            enabled: bridge?.modemPresent ?? true
-                            cursorShape: (bridge?.modemPresent ?? true) ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            enabled: (bridge?.modemPresent ?? true) && !(bridge?.isSwitchingMode ?? false)
+                            cursorShape: ((bridge?.modemPresent ?? true) && !(bridge?.isSwitchingMode ?? false)) ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     bridge.switchMode("usb_modem");
@@ -213,7 +218,11 @@ Item {
                             anchors.margins: Theme.spacingMd
                             spacing: Theme.spacingMd
 
-                            Text { text: "💻"; font.pixelSize: 24 }
+                            Icon {
+                                name: "laptop"
+                                size: 22
+                                color: ((bridge?.operationalMode ?? "usb_modem") === "usb_modem") ? Theme.colorCyan : Theme.textSecondary
+                            }
 
                             ColumnLayout {
                                 Layout.fillWidth: true
@@ -249,8 +258,8 @@ Item {
 
                         MouseArea {
                             anchors.fill: parent
-                            enabled: bridge?.modemPresent ?? true
-                            cursorShape: (bridge?.modemPresent ?? true) ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            enabled: (bridge?.modemPresent ?? true) && !(bridge?.isSwitchingMode ?? false)
+                            cursorShape: ((bridge?.modemPresent ?? true) && !(bridge?.isSwitchingMode ?? false)) ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     bridge.switchMode("pocket_router");
@@ -263,7 +272,11 @@ Item {
                             anchors.margins: Theme.spacingMd
                             spacing: Theme.spacingMd
 
-                            Text { text: "🌐"; font.pixelSize: 24 }
+                            Icon {
+                                name: "globe"
+                                size: 22
+                                color: ((bridge?.operationalMode ?? "usb_modem") === "pocket_router") ? Theme.colorGold : Theme.textSecondary
+                            }
 
                             ColumnLayout {
                                 Layout.fillWidth: true
@@ -291,127 +304,147 @@ Item {
             }
 
             // ===============================================================
-            // WI-FI CREDENTIALS & HARDWARE AP CONFIGURATION
+            // WI-FI RADIO CONFIGURATION (NVRAM COMMIT & GOFORM DISPATCH)
             // ===============================================================
             Card {
                 Layout.fillWidth: true
-                title: "Access Point Credentials & NVRAM Commit"
-                subtitle: "Writes clean un-suffixed SSID via embedded GoForm API (no manufacturer MAC tail)"
+                title: "Wi-Fi Co-Processor Radio Settings"
+                subtitle: !(bridge?.modemPresent ?? true)
+                          ? "NVRAM configuration offline — Connect USB modem to configure integrated Broadcom Wi-Fi"
+                          : "Configure SSID, WPA2-PSK security passphrase, and 2.4 GHz broadcast channel"
+                iconName: "radio"
+                iconColor: Theme.colorGold
 
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.spacingMd
+                    opacity: !(bridge?.modemPresent ?? true) ? 0.45 : 1.0
 
+                    // SSID Input Row
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: Theme.spacingLg
+                        spacing: Theme.spacingMd
 
-                        // SSID Input
-                        ColumnLayout {
+                        Text {
+                            text: "Network Name (SSID)"
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontSizeBody
+                            color: Theme.textSecondary
+                            Layout.preferredWidth: 180
+                        }
+
+                        Rectangle {
                             Layout.fillWidth: true
-                            spacing: Theme.spacingXs
+                            height: 38
+                            radius: Theme.radiusMd
+                            color: Theme.colorObsidian
+                            border.color: ssidInput.activeFocus ? Theme.colorCyan : Theme.colorBorder
+                            border.width: 1
 
-                            Text { text: "NETWORK NAME (CLEAN SSID)"; font.family: Theme.fontMono; font.pixelSize: Theme.fontSizeSmall; color: Theme.textSecondary }
-                            Rectangle {
-                                Layout.fillWidth: true
-                                height: 38
-                                radius: Theme.radiusSm
-                                color: Theme.colorObsidian
-                                border.color: Theme.colorBorder
-                                border.width: 1
+                            TextInput {
+                                id: ssidInput
+                                anchors.fill: parent
+                                anchors.margins: Theme.spacingSm
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontSizeBody
+                                color: Theme.textPrimary
+                                text: (bridge?.wifiSsid && bridge.wifiSsid.length > 0) ? bridge.wifiSsid : "TypeScript 420"
+                                selectByMouse: true
+                                enabled: (bridge?.modemPresent ?? true) && !(bridge?.isSavingWifiConfig ?? false)
+                            }
+                        }
+                    }
+
+                    // Passphrase Input Row
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacingMd
+
+                        Text {
+                            text: "WPA2-PSK Passphrase"
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontSizeBody
+                            color: Theme.textSecondary
+                            Layout.preferredWidth: 180
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 38
+                            radius: Theme.radiusMd
+                            color: Theme.colorObsidian
+                            border.color: passInput.activeFocus ? Theme.colorCyan : Theme.colorBorder
+                            border.width: 1
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: Theme.spacingSm
+                                spacing: Theme.spacingSm
 
                                 TextInput {
-                                    id: ssidInput
-                                    anchors.fill: parent
-                                    anchors.margins: Theme.spacingSm
-                                    text: (bridge?.wifiSsid && bridge.wifiSsid.length > 0) ? bridge.wifiSsid : "TypeScript 420"
-                                    font.family: Theme.fontMono
+                                    id: passInput
+                                    Layout.fillWidth: true
+                                    font.family: Theme.fontSans
                                     font.pixelSize: Theme.fontSizeBody
                                     color: Theme.textPrimary
+                                    echoMode: root.showPassword ? TextInput.Normal : TextInput.Password
+                                    text: "12345678"
                                     selectByMouse: true
+                                    enabled: (bridge?.modemPresent ?? true) && !(bridge?.isSavingWifiConfig ?? false)
                                 }
-                            }
-                        }
 
-                        // Passphrase Input
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: Theme.spacingXs
+                                Rectangle {
+                                    width: 24
+                                    height: 24
+                                    radius: Theme.radiusSm
+                                    color: eyeMouse.containsMouse ? Theme.colorCardHover : "transparent"
 
-                            Text { text: "WPA2-PSK PASSPHRASE"; font.family: Theme.fontMono; font.pixelSize: Theme.fontSizeSmall; color: Theme.textSecondary }
-                            Rectangle {
-                                Layout.fillWidth: true
-                                height: 38
-                                radius: Theme.radiusSm
-                                color: Theme.colorObsidian
-                                border.color: Theme.colorBorder
-                                border.width: 1
-
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.margins: Theme.spacingSm
-                                    spacing: Theme.spacingSm
-
-                                    TextInput {
-                                        id: passInput
-                                        Layout.fillWidth: true
-                                        text: "12345678"
-                                        echoMode: root.showPassword ? TextInput.Normal : TextInput.Password
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeBody
-                                        color: Theme.textPrimary
-                                        selectByMouse: true
+                                    Icon {
+                                        anchors.centerIn: parent
+                                        name: root.showPassword ? "eye-off" : "eye"
+                                        size: 14
+                                        color: root.showPassword ? Theme.colorCyan : Theme.textMuted
                                     }
 
-                                    Text {
-                                        text: root.showPassword ? "🙈" : "👁"
-                                        font.pixelSize: 16
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.showPassword = !root.showPassword
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Channel Selector
-                        ColumnLayout {
-                            Layout.preferredWidth: 140
-                            spacing: Theme.spacingXs
-
-                            Text { text: "CHANNEL"; font.family: Theme.fontMono; font.pixelSize: Theme.fontSizeSmall; color: Theme.textSecondary }
-                            Rectangle {
-                                Layout.fillWidth: true
-                                height: 38
-                                radius: Theme.radiusSm
-                                color: Theme.colorObsidian
-                                border.color: Theme.colorBorder
-                                border.width: 1
-
-                                ComboBox {
-                                    id: channelBox
-                                    anchors.fill: parent
-                                    model: ["Ch 11 (2.462 GHz)", "Ch 6 (2.437 GHz)", "Ch 1 (2.412 GHz)", "Auto (Adaptive)"]
-                                    currentIndex: 0
-                                    background: Rectangle { color: "transparent" }
-                                    contentItem: TextEdit {
-                                        readOnly: true
-                                        selectByMouse: false
-                                        leftPadding: 10
-                                        text: channelBox.displayText
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        color: Theme.textPrimary
-                                        verticalAlignment: Text.AlignVCenter
+                                    MouseArea {
+                                        id: eyeMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.showPassword = !root.showPassword
                                     }
                                 }
                             }
                         }
                     }
 
-                    // Save / Apply Row
+                    // Channel Selector Row
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacingMd
+
+                        Text {
+                            text: "Broadcast Channel"
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontSizeBody
+                            color: Theme.textSecondary
+                            Layout.preferredWidth: 180
+                        }
+
+                        ComboBox {
+                            id: channelBox
+                            Layout.preferredWidth: 200
+                            model: ["Channel 11 (2.462 GHz)", "Channel 6 (2.437 GHz)", "Channel 1 (2.412 GHz)", "Auto Channel Select"]
+                            currentIndex: 0
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontSizeBody
+                            enabled: (bridge?.modemPresent ?? true) && !(bridge?.isSavingWifiConfig ?? false)
+                        }
+
+                        Item { Layout.fillWidth: true }
+                    }
+
+                    // Action Buttons Row
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.spacingSm
@@ -419,7 +452,7 @@ Item {
                         FelineButton {
                             text: "Open Web UI"
                             variant: "outline"
-                            iconGlyph: "🌐"
+                            iconName: "external-link"
                             implicitHeight: 38
                             disabled: !(bridge?.modemPresent ?? true)
                             onClicked: {
@@ -432,7 +465,7 @@ Item {
                         FelineButton {
                             text: "Reboot Modem"
                             variant: "secondary"
-                            iconGlyph: "🔄"
+                            iconName: "refresh-cw"
                             implicitHeight: 38
                             disabled: !(bridge?.modemPresent ?? true)
                             onClicked: {
@@ -447,10 +480,12 @@ Item {
                         FelineButton {
                             text: "Apply Credentials"
                             variant: "primary"
-                            iconGlyph: "💾"
-                            implicitWidth: 150
+                            iconName: "copy"
+                            loading: bridge?.isSavingWifiConfig ?? false
+                            loadingText: "Applying..."
+                            implicitWidth: 155
                             implicitHeight: 38
-                            disabled: !(bridge?.modemPresent ?? true)
+                            disabled: !(bridge?.modemPresent ?? true) || (bridge?.isSavingWifiConfig ?? false)
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     var ch = 11;
@@ -472,6 +507,8 @@ Item {
                 Layout.fillWidth: true
                 title: "Assist Wi-Fi Hotspot Relay (Simultaneous 4G WAN + SoftAP)"
                 subtitle: "Broadcast an independent Wi-Fi hotspot on auxiliary WLAN hardware (e.g. TP-Link USB adapter), sharing 4G LTE cellular data over ppp0 without touching host connection."
+                iconName: "radio"
+                iconColor: Theme.colorCyan
 
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -511,7 +548,7 @@ Item {
                         FelineButton {
                             text: (bridge?.isScanningDevices ?? false) ? "Scanning..." : "Scan Adapters"
                             variant: "outline"
-                            iconGlyph: "🔍"
+                            iconName: "refresh-cw"
                             loading: bridge?.isScanningDevices ?? false
                             disabled: bridge?.isScanningDevices ?? false
                             implicitHeight: 28
@@ -542,9 +579,10 @@ Item {
                             spacing: Theme.spacingXs
 
                             Text {
-                                text: "ASSIST WLAN ADAPTER (PROTECTS PRIMARY)"
-                                font.family: Theme.fontMono
+                                text: "Assist WLAN Adapter (Protects Primary)"
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Medium
                                 color: Theme.textSecondary
                             }
 
@@ -600,9 +638,10 @@ Item {
                             spacing: Theme.spacingXs
 
                             Text {
-                                text: "HOTSPOT SSID (BROADCAST NAME)"
-                                font.family: Theme.fontMono
+                                text: "Hotspot SSID (Broadcast Name)"
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Medium
                                 color: Theme.textSecondary
                             }
 
@@ -634,9 +673,10 @@ Item {
                             spacing: Theme.spacingXs
 
                             Text {
-                                text: "WPA2-PSK PASSPHRASE"
-                                font.family: Theme.fontMono
+                                text: "WPA2-PSK Passphrase"
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Medium
                                 color: Theme.textSecondary
                             }
 
@@ -665,9 +705,10 @@ Item {
                                         selectByMouse: true
                                     }
 
-                                    Text {
-                                        text: root.showRelayPassword ? "🙈" : "👁"
-                                        font.pixelSize: 16
+                                    Icon {
+                                        name: root.showRelayPassword ? "eye-off" : "eye"
+                                        size: 16
+                                        color: Theme.textSecondary
                                         MouseArea {
                                             anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
@@ -684,9 +725,10 @@ Item {
                             spacing: Theme.spacingXs
 
                             Text {
-                                text: "BAND / CHANNEL"
-                                font.family: Theme.fontMono
+                                text: "Band / Channel"
+                                font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Medium
                                 color: Theme.textSecondary
                             }
 
@@ -736,9 +778,10 @@ Item {
                             anchors.rightMargin: Theme.spacingMd
                             spacing: Theme.spacingSm
 
-                            Text {
-                                text: "⚠️"
-                                font.pixelSize: 13
+                            Icon {
+                                name: "alert-triangle"
+                                size: 14
+                                color: Theme.colorDanger
                             }
 
                             Text {
@@ -751,7 +794,7 @@ Item {
                             }
 
                             Text {
-                                text: "✕ Dismiss"
+                                text: "Dismiss"
                                 font.family: Theme.fontMono
                                 font.pixelSize: Theme.fontSizeCaption
                                 font.weight: Font.DemiBold
@@ -781,7 +824,7 @@ Item {
                                 return (bridge?.relayActive ?? false) ? "Stop Hotspot Relay" : "Start Hotspot Relay";
                             }
                             variant: (bridge?.relayActive ?? false) ? "danger" : "primary"
-                            iconGlyph: (bridge?.relayActive ?? false) ? "🛑" : "📡"
+                            iconName: (bridge?.relayActive ?? false) ? "square" : "radio"
                             loading: bridge?.relayBusy ?? false
                             implicitWidth: 195
                             implicitHeight: 38
@@ -830,22 +873,22 @@ Item {
                                 var devs = bridge?.wlanDevices ?? [];
                                 if (bridge?.relayBusy ?? false) {
                                     return (bridge?.relayActive ?? false)
-                                        ? "⏳ Deactivating Hotspot Relay and cleaning up forwarding rules..."
-                                        : "⏳ Provisioning Hotspot Relay on " + (devs.length > relayDeviceBox.currentIndex ? devs[relayDeviceBox.currentIndex].iface : "adapter") + "... Configuring softAP and Table 420 policy routes.";
+                                        ? "Deactivating Hotspot Relay and cleaning up forwarding rules..."
+                                        : "Provisioning Hotspot Relay on " + (devs.length > relayDeviceBox.currentIndex ? devs[relayDeviceBox.currentIndex].iface : "adapter") + "... Configuring softAP and Table 420 policy routes.";
                                 }
                                 if (bridge?.relayError && bridge.relayError.length > 0) {
-                                    return "❌ Error: " + bridge.relayError;
+                                    return "Error: " + bridge.relayError;
                                 }
                                 if (bridge?.relayActive ?? false) {
-                                    return "● Broadcasting on " + (bridge?.relayInterface ?? "wlan1") + " (" + (bridge?.relaySsid ?? "") + ") • Gateway: " + (bridge?.relayIpAddress ?? "10.42.0.1") + " • Upstream WAN: " + (bridge?.relayWanInterface ?? "ppp0") + " (LTE)";
+                                    return "Broadcasting on " + (bridge?.relayInterface ?? "wlan1") + " (" + (bridge?.relaySsid ?? "") + ") • Gateway: " + (bridge?.relayIpAddress ?? "10.42.0.1") + " • Upstream WAN: " + (bridge?.relayWanInterface ?? "ppp0") + " (LTE)";
                                 }
                                 if (devs.length > relayDeviceBox.currentIndex) {
                                     var sel = devs[relayDeviceBox.currentIndex];
                                     if (sel.is_in_use || sel.is_primary) {
-                                        return "⚠️ Selected adapter " + sel.iface + " is actively connected to '" + (sel.active_connection || "Host Link") + "'. Select an idle candidate adapter.";
+                                        return "Selected adapter " + sel.iface + " is actively connected to '" + (sel.active_connection || "Host Link") + "'. Select an idle candidate adapter.";
                                     }
                                     if (!sel.supports_ap) {
-                                        return "⚠️ Selected adapter " + sel.iface + " does not support AP mode.";
+                                        return "Selected adapter " + sel.iface + " does not support AP mode.";
                                     }
                                 }
                                 return "Auxiliary adapter ready. Click 'Start Hotspot Relay' to broadcast Wi-Fi softAP and forward client traffic out 4G modem.";
@@ -869,7 +912,7 @@ Item {
                         FelineButton {
                             text: "Refresh Clients"
                             variant: "outline"
-                            iconGlyph: "⟳"
+                            iconName: "refresh-cw"
                             implicitHeight: 34
                             implicitWidth: 130
                             visible: (bridge?.relayActive ?? false)
@@ -986,6 +1029,8 @@ Item {
                 Layout.fillWidth: true
                 title: "Connected Wireless Client Stations"
                 subtitle: "Real-time inventory scraped from embedded QC-Webs station_list.asp"
+                iconName: "laptop"
+                iconColor: Theme.colorCyan
 
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -1008,7 +1053,7 @@ Item {
                         FelineButton {
                             text: "Refresh Stations"
                             variant: "outline"
-                            iconGlyph: "⟳"
+                            iconName: "refresh-cw"
                             implicitHeight: 28
                             implicitWidth: 130
                             onClicked: {

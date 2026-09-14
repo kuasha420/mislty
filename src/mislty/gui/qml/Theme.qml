@@ -4,44 +4,62 @@ import QtQuick
 QtObject {
     id: theme
 
-    // --- Feline Color Tokens ---
-    // Void / Obsidian backgrounds
-    readonly property color colorVoid: "#0c0e14"
-    readonly property color colorObsidian: "#141721"
-    readonly property color colorCard: "#181c2b"
-    readonly property color colorCardHover: "#202538"
-    readonly property color colorRaised: "#252b40"
-    readonly property color colorOverlay: "#cc0c0e14"
+    // --- Obsidian & Titanium Color Tokens ---
+    // Void / Canvas backgrounds
+    readonly property color colorVoid: "#080a0f"
+    readonly property color colorObsidian: "#0d1017"
+    readonly property color colorCard: "#121622"
+    readonly property color colorCardHover: "#171c2b"
+    readonly property color colorRaised: "#1b2133"
+    readonly property color colorInput: "#0a0d14"
+    readonly property color colorOverlay: "#d8080a0f"
 
     // Border & Divider tokens
-    readonly property color colorBorder: "#1f2438"
-    readonly property color colorBorderHighlight: "#2f3856"
-    readonly property color colorBorderActive: "#00f0ff"
+    readonly property color colorBorder: "#1e2638"
+    readonly property color colorBorderSubtle: Qt.rgba(255, 255, 255, 0.06)
+    readonly property color colorBorderHighlight: "#2d3752"
+    readonly property color colorBorderActive: "#38bdf8"
 
     // Brand & Accent tokens
-    readonly property color colorCyan: "#00f0ff"       // Terminal Cyan
-    readonly property color colorGold: "#f39c12"       // Feline Purr Gold
-    readonly property color colorPurple: "#9b5de5"     // Feline Lavender
-    readonly property color colorCoral: "#ff6f61"
+    readonly property color colorCyan: "#38bdf8"       // Titanium Sky Cyan
+    readonly property color colorGold: "#f59e0b"       // Warm Honey Amber
+    readonly property color colorPurple: "#a855f7"     // Electric Violet
+    readonly property color colorCoral: "#fb7185"
+
+    // Gradients & Surfaces
+    readonly property color gradientHeroStart: "#00e5ff"       // Vibrant Electric Cyan
+    readonly property color gradientHeroEnd: "#0077b6"         // Deep Radiant Blue
+    readonly property color gradientDangerStart: "#e11d48"     // Refined Rose/Crimson
+    readonly property color gradientDangerEnd: "#9f1239"       // Deep Crimson
+    readonly property color gradientWarnStart: "#d97706"       // Warm Amber
+    readonly property color gradientWarnEnd: "#b45309"         // Deep Amber
+    readonly property color gradientSuccessStart: "#10b981"    // Emerald
+    readonly property color gradientSuccessEnd: "#047857"      // Deep Emerald
+    readonly property color gradientCardTop: "#141926"
+    readonly property color gradientCardBottom: "#101420"
+
+    // Input Surface tokens
+    readonly property color colorInputBorder: "#1e2638"
+    readonly property color colorInputFocus: "#38bdf8"
 
     // Semantic Status tokens
-    readonly property color colorSuccess: "#00e676"    // Online / Signal Good
-    readonly property color colorWarning: "#ffb300"    // Warning / Medium Signal
-    readonly property color colorDanger: "#ff3366"     // Error / Disconnected / Weak
-    readonly property color colorInfo: "#00b4d8"
-    readonly property color colorCrimson: "#ff3366"
-    readonly property color colorEmerald: "#00e676"
-    readonly property color colorCyanMuted: Qt.rgba(0, 240, 255, 0.35)
+    readonly property color colorSuccess: "#10b981"    // Refined Emerald
+    readonly property color colorWarning: "#f59e0b"    // Refined Amber
+    readonly property color colorDanger: "#f43f5e"     // Refined Rose
+    readonly property color colorInfo: "#38bdf8"
+    readonly property color colorCrimson: "#f43f5e"
+    readonly property color colorEmerald: "#10b981"
+    readonly property color colorCyanMuted: Qt.rgba(56, 189, 248, 0.20)
 
     // Foreground / Text tokens
-    readonly property color textPrimary: "#f0f6fc"
-    readonly property color textSecondary: "#8b949e"
-    readonly property color textMuted: "#565d6d"
-    readonly property color textInverse: "#0c0e14"
+    readonly property color textPrimary: "#f8fafc"
+    readonly property color textSecondary: "#94a3b8"
+    readonly property color textMuted: "#64748b"
+    readonly property color textInverse: "#080a0f"
 
     // --- Typography ---
-    readonly property string fontSans: "Inter, Cantarell, Ubuntu, DejaVu Sans, Segoe UI, sans-serif"
-    readonly property string fontMono: "JetBrains Mono, Fira Code, DejaVu Sans Mono, Consolas, monospace"
+    readonly property string fontSans: "Inter, Cantarell, Ubuntu, DejaVu Sans, Noto Sans, Segoe UI, sans-serif"
+    readonly property string fontMono: "JetBrains Mono, Fira Code, DejaVu Sans Mono, Noto Sans Mono, Consolas, monospace"
 
     readonly property int fontSizeH1: 22
     readonly property int fontSizeH2: 17
@@ -61,10 +79,11 @@ QtObject {
     readonly property int spacingXxl: 32
 
     // --- Corner Radii ---
-    readonly property int radiusSm: 4
-    readonly property int radiusMd: 8
-    readonly property int radiusLg: 12
-    readonly property int radiusXl: 16
+    readonly property int radiusXs: 4
+    readonly property int radiusSm: 6
+    readonly property int radiusMd: 10
+    readonly property int radiusLg: 18
+    readonly property int radiusXl: 24
     readonly property int radiusPill: 999
 
     // --- Animation Timings ---

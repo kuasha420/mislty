@@ -152,7 +152,10 @@ def test_live_hardware_at_commands():
     dispatcher = AtDispatcher(transport)
 
     # 1. Basic AT ping
-    resp_at = dispatcher.execute("AT")
+    try:
+        resp_at = dispatcher.execute("AT")
+    except PortBusyError:
+        pytest.skip("Control port is currently in use by running mislty-daemon.")
     assert resp_at.success is True
 
     # 2. Identification query (ATI)

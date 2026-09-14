@@ -14,7 +14,7 @@ Item {
     property color barColor: root.offline ? Theme.textMuted : Theme.signalColor(root.csq)
 
     implicitWidth: barRow.implicitWidth + (showText ? textColumn.implicitWidth + Theme.spacingSm : 0)
-    implicitHeight: 32
+    implicitHeight: 28
 
     RowLayout {
         anchors.fill: parent
@@ -29,12 +29,12 @@ Item {
                 model: 5
                 Rectangle {
                     required property int index
-                    width: 4
-                    height: 8 + (index * 4)   // 8, 12, 16, 20, 24 px
+                    width: 3.5
+                    height: 6 + (index * 3.5)
                     anchors.bottom: parent.bottom
-                    radius: 1
-                    color: root.offline ? Theme.colorRaised : ((index < root.bars) ? root.barColor : Theme.colorRaised)
-                    opacity: root.offline ? 0.2 : ((index < root.bars) ? 1.0 : 0.4)
+                    radius: 2
+                    color: root.offline ? Qt.rgba(255, 255, 255, 0.08) : ((index < root.bars) ? root.barColor : Qt.rgba(255, 255, 255, 0.12))
+                    opacity: root.offline ? 0.3 : ((index < root.bars) ? 1.0 : 0.4)
 
                     Behavior on color { ColorAnimation { duration: Theme.animFast } }
                     Behavior on opacity { NumberAnimation { duration: Theme.animFast } }
@@ -45,13 +45,13 @@ Item {
         ColumnLayout {
             id: textColumn
             visible: root.showText
-            spacing: 1
+            spacing: 0
             Layout.alignment: Qt.AlignVCenter
 
             Text {
                 text: root.offline ? root.offlineText : ((root.bars > 0) ? (root.bars + "/5 BARS") : "NO SIGNAL")
                 font.family: Theme.fontSans
-                font.pixelSize: Theme.fontSizeCaption
+                font.pixelSize: Theme.fontSizeSmall
                 font.weight: Font.Bold
                 color: root.offline ? Theme.textMuted : (root.bars > 0 ? Theme.textPrimary : Theme.colorDanger)
             }
@@ -59,7 +59,7 @@ Item {
             Text {
                 text: root.offline ? "Hardware Unplugged" : ((root.csq > 0 && root.csq !== 99) ? (root.csq + " CSQ (" + root.dbm + " dBm)") : "Disconnected")
                 font.family: Theme.fontMono
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: 9
                 color: Theme.textMuted
             }
         }

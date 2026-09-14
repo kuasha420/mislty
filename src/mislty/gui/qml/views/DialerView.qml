@@ -41,6 +41,8 @@ Item {
             Layout.fillHeight: true
             title: "Voice Dialer & Keypad"
             subtitle: "PipeWire PCM Loopback Bridge (8000 Hz S16_LE)"
+            iconName: "phone"
+            iconColor: Theme.colorCyan
 
             ColumnLayout {
                 Layout.fillWidth: true
@@ -48,8 +50,8 @@ Item {
                 // Modem Disconnected Banner
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 32
-                    radius: Theme.radiusSm
+                    implicitHeight: 34
+                    radius: Theme.radiusMd
                     color: Qt.rgba(255, 75, 75, 0.1)
                     border.color: Qt.rgba(255, 75, 75, 0.3)
                     border.width: 1
@@ -57,10 +59,10 @@ Item {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.margins: 6
+                        anchors.margins: 8
                         spacing: 6
 
-                        Text { text: "🔌"; font.pixelSize: 12 }
+                        Icon { name: "plug"; size: 14; color: Theme.colorDanger }
                         Text {
                             Layout.fillWidth: true
                             text: "Modem disconnected: Voice PCM audio stream (/dev/mislty/voice) is offline."
@@ -156,17 +158,17 @@ Item {
                         Rectangle {
                             width: 36
                             height: 36
-                            radius: Theme.radiusSm
+                            radius: Theme.radiusMd
                             color: bsHover.containsMouse ? Theme.colorCardHover : "transparent"
-                            border.color: Theme.colorBorder
+                            border.color: bsHover.containsMouse ? Theme.colorCyan : Theme.colorBorder
                             border.width: 1
                             visible: root.dialInput.length > 0
 
-                            Text {
+                            Icon {
                                 anchors.centerIn: parent
-                                text: "⌫"
-                                font.pixelSize: 16
-                                color: Theme.textPrimary
+                                name: "x"
+                                size: 14
+                                color: bsHover.containsMouse ? Theme.colorCyan : Theme.textSecondary
                             }
 
                             MouseArea {
@@ -263,75 +265,31 @@ Item {
                     spacing: Theme.spacingMd
 
                     // Call Button
-                    Rectangle {
+                    FelineButton {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        radius: Theme.radiusMd
-                        color: (!(bridge?.modemPresent ?? true) || root.dialInput.length === 0 || root.activeCallState !== "IDLE")
-                               ? Theme.colorCardHover
-                               : (callBtnHover.containsMouse ? "#00ff88" : Theme.colorSuccess)
-                        opacity: (!(bridge?.modemPresent ?? true) || root.dialInput.length === 0 || root.activeCallState !== "IDLE") ? 0.4 : 1.0
-
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: Theme.spacingSm
-                            Text { text: !(bridge?.modemPresent ?? true) ? "🔌" : "📞"; font.pixelSize: 16 }
-                            Text {
-                                text: !(bridge?.modemPresent ?? true) ? "Modem Offline" : "Place Call"
-                                font.family: Theme.fontSans
-                                font.pixelSize: Theme.fontSizeBody
-                                font.weight: Font.Bold
-                                color: !(bridge?.modemPresent ?? true) ? Theme.textMuted : Theme.textInverse
-                            }
-                        }
-
-                        MouseArea {
-                            id: callBtnHover
-                            anchors.fill: parent
-                            enabled: (bridge?.modemPresent ?? true) && root.dialInput.length > 0 && root.activeCallState === "IDLE"
-                            hoverEnabled: true
-                            cursorShape: (bridge?.modemPresent ?? true) ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            onClicked: {
-                                if (typeof bridge !== "undefined" && bridge && bridge.dialNumber) {
-                                    bridge.dialNumber(root.dialInput);
-                                }
+                        text: !(bridge?.modemPresent ?? true) ? "Modem Offline" : "Place Call"
+                        variant: "success"
+                        iconName: !(bridge?.modemPresent ?? true) ? "plug" : "phone"
+                        disabled: !(bridge?.modemPresent ?? true) || root.dialInput.length === 0 || root.activeCallState !== "IDLE"
+                        onClicked: {
+                            if (typeof bridge !== "undefined" && bridge && bridge.dialNumber) {
+                                bridge.dialNumber(root.dialInput);
                             }
                         }
                     }
 
                     // Hangup Button
-                    Rectangle {
+                    FelineButton {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        radius: Theme.radiusMd
-                        color: (root.activeCallState === "IDLE")
-                               ? Theme.colorCardHover
-                               : (hangupHover.containsMouse ? "#ff4d79" : Theme.colorDanger)
-                        opacity: (root.activeCallState === "IDLE") ? 0.4 : 1.0
-
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: Theme.spacingSm
-                            Text { text: "📵"; font.pixelSize: 16 }
-                            Text {
-                                text: "End Call"
-                                font.family: Theme.fontSans
-                                font.pixelSize: Theme.fontSizeBody
-                                font.weight: Font.Bold
-                                color: "#ffffff"
-                            }
-                        }
-
-                        MouseArea {
-                            id: hangupHover
-                            anchors.fill: parent
-                            enabled: root.activeCallState !== "IDLE"
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (typeof bridge !== "undefined" && bridge && bridge.hangupCall) {
-                                    bridge.hangupCall();
-                                }
+                        text: "End Call"
+                        variant: "danger"
+                        iconName: "phone-off"
+                        disabled: root.activeCallState === "IDLE"
+                        onClicked: {
+                            if (typeof bridge !== "undefined" && bridge && bridge.hangupCall) {
+                                bridge.hangupCall();
                             }
                         }
                     }
@@ -345,6 +303,8 @@ Item {
             Layout.fillHeight: true
             title: "Cellular Voice Specs"
             subtitle: "Qualcomm Baseband Architecture"
+            iconName: "cpu"
+            iconColor: Theme.colorCyan
 
             ColumnLayout {
                 Layout.fillWidth: true
@@ -353,7 +313,7 @@ Item {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    radius: Theme.radiusSm
+                    radius: Theme.radiusMd
                     color: Theme.colorObsidian
                     border.color: Theme.colorBorder
                     border.width: 1
@@ -403,7 +363,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: Theme.radiusSm
+                    radius: Theme.radiusMd
                     color: Qt.rgba(255, 51, 102, 0.08)
                     border.color: Qt.rgba(255, 51, 102, 0.3)
                     border.width: 1
@@ -414,12 +374,13 @@ Item {
                         spacing: Theme.spacingSm
 
                         RowLayout {
-                            Text { text: "💔"; font.pixelSize: 16 }
+                            spacing: 6
+                            Icon { name: "alert-triangle"; size: 16; color: Theme.colorDanger }
                             Text {
                                 text: "The Tragic Voice Easter Egg"
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeBody
-                                font.weight: Font.Bold
+                                font.weight: Font.DemiBold
                                 color: Theme.colorDanger
                             }
                         }
@@ -439,7 +400,7 @@ Item {
                             Layout.fillWidth: true
                             text: "Read Tragic Voice Lore"
                             variant: "gold"
-                            iconGlyph: "📖"
+                            iconName: "book-open"
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge && bridge.triggerTragicVoiceLore) {
                                     bridge.triggerTragicVoiceLore(root.dialInput || "121");
@@ -488,7 +449,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: Theme.spacingSm
 
-                    Text { text: "📻"; font.pixelSize: 22 }
+                    Icon { name: "radio"; size: 24; color: Theme.colorGold }
 
                     ColumnLayout {
                         spacing: 2
@@ -541,8 +502,8 @@ Item {
                     FelineButton {
                         text: "Understood, Good Cat"
                         variant: "primary"
-                        iconGlyph: "🐾"
-                        implicitWidth: 180
+                        iconName: "paw"
+                        implicitWidth: 190
                         implicitHeight: 38
                         onClicked: {
                             root.showTragicVoiceModal = false;

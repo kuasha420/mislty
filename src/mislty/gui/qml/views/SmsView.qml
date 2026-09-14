@@ -88,6 +88,8 @@ Item {
             Layout.preferredWidth: 340
             title: "Conversations"
             subtitle: "SQLite Threaded Archive"
+            iconName: "message-square"
+            iconColor: Theme.colorCyan
 
             ColumnLayout {
                 Layout.fillWidth: true
@@ -97,8 +99,8 @@ Item {
                 // Hardware Disconnected Notice Banner
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: discNoticeCol.implicitHeight + 14
-                    radius: Theme.radiusSm
+                    implicitHeight: discNoticeCol.implicitHeight + 16
+                    radius: Theme.radiusMd
                     color: Qt.rgba(255, 75, 75, 0.1)
                     border.color: Qt.rgba(255, 75, 75, 0.3)
                     border.width: 1
@@ -107,17 +109,17 @@ Item {
                     ColumnLayout {
                         id: discNoticeCol
                         anchors.fill: parent
-                        anchors.margins: 8
-                        spacing: 2
+                        anchors.margins: 10
+                        spacing: 4
 
                         RowLayout {
-                            spacing: 4
-                            Text { text: "🔌"; font.pixelSize: 12 }
+                            spacing: 6
+                            Icon { name: "plug"; size: 14; color: Theme.colorDanger }
                             Text {
                                 text: "Modem Disconnected"
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeSmall
-                                font.weight: Font.Bold
+                                font.weight: Font.DemiBold
                                 color: Theme.colorCoral
                             }
                         }
@@ -140,10 +142,12 @@ Item {
                     FelineButton {
                         Layout.fillWidth: true
                         text: !(bridge?.modemPresent ?? true) ? "SIM Offline" : "Sync SIM"
-                        variant: !(bridge?.modemPresent ?? true) ? "secondary" : "gold"
-                        iconGlyph: !(bridge?.modemPresent ?? true) ? "🔌" : "🔄"
+                        variant: !(bridge?.modemPresent ?? true) ? "secondary" : "secondary"
+                        iconName: !(bridge?.modemPresent ?? true) ? "plug" : "refresh-cw"
+                        loading: bridge?.isSyncingSms ?? false
+                        loadingText: "Syncing..."
                         implicitHeight: 34
-                        disabled: !(bridge?.modemPresent ?? true)
+                        disabled: !(bridge?.modemPresent ?? true) || (bridge?.isSyncingSms ?? false)
                         onClicked: {
                             if (typeof bridge !== "undefined" && bridge) {
                                 bridge.syncSms();
@@ -154,8 +158,8 @@ Item {
                     FelineButton {
                         text: "New Message"
                         variant: "secondary"
-                        iconGlyph: "✏️"
-                        implicitWidth: 115
+                        iconName: "edit"
+                        implicitWidth: 125
                         implicitHeight: 34
                         onClicked: {
                             root.activeThreadId = -1;
@@ -173,7 +177,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     height: 36
-                    radius: Theme.radiusSm
+                    radius: Theme.radiusMd
                     color: Theme.colorObsidian
                     border.color: searchInput.activeFocus ? Theme.colorCyan : Theme.colorBorder
                     border.width: 1
@@ -183,10 +187,10 @@ Item {
                         anchors.margins: Theme.spacingSm
                         spacing: Theme.spacingSm
 
-                        Text {
-                            text: "🔍"
-                            font.pixelSize: 12
-                            opacity: 0.6
+                        Icon {
+                            name: "search"
+                            size: 14
+                            color: Theme.textMuted
                         }
 
                         TextInput {
@@ -208,13 +212,25 @@ Item {
                         }
 
                         // Clear search button
-                        Text {
-                            text: "✕"
+                        Rectangle {
                             visible: searchInput.text.length > 0
-                            font.pixelSize: 11
-                            color: Theme.textMuted
+                            width: 18
+                            height: 18
+                            radius: 9
+                            color: clearMouse.containsMouse ? Theme.colorCardHover : "transparent"
+
+                            Icon {
+                                anchors.centerIn: parent
+                                name: "x"
+                                size: 10
+                                color: Theme.textMuted
+                            }
+
                             MouseArea {
+                                id: clearMouse
                                 anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
                                 onClicked: searchInput.text = ""
                             }
                         }
@@ -359,6 +375,8 @@ Item {
                    ? (root.activeContactName.length > 0 ? (root.activeContactName + " (" + root.activeRecipient + ")") : ("Thread: " + root.activeRecipient))
                    : "Compose Message"
             subtitle: root.activeThreadId > 0 ? "3GPP SMS Conversation" : "Send direct SMS message"
+            iconName: root.activeThreadId > 0 ? "message-square" : "edit"
+            iconColor: Theme.colorCyan
 
             ColumnLayout {
                 Layout.fillWidth: true
@@ -381,75 +399,33 @@ Item {
                     Item { Layout.fillWidth: true }
 
                     // Quick Dial shortcut button
-                    Rectangle {
+                    FelineButton {
+                        text: "Call"
+                        variant: "outline"
+                        iconName: "phone"
                         implicitHeight: 28
-                        implicitWidth: callRow.implicitWidth + 12
-                        radius: Theme.radiusSm
-                        color: callHover.containsMouse ? Theme.colorCardHover : Theme.colorObsidian
-                        border.color: Theme.colorBorder
-                        border.width: 1
-
-                        RowLayout {
-                            id: callRow
-                            anchors.centerIn: parent
-                            spacing: 4
-                            Text { text: "📞"; font.pixelSize: 11 }
-                            Text {
-                                text: "Call"
-                                font.family: Theme.fontSans
-                                font.pixelSize: Theme.fontSizeSmall
-                                color: Theme.textPrimary
-                            }
-                        }
-
-                        MouseArea {
-                            id: callHover
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (typeof bridge !== "undefined" && bridge) {
-                                    bridge.activeCallNumber = root.activeRecipient;
-                                    bridge.activeDeck = 3; // Switch to Dialer deck
-                                }
+                        implicitWidth: 80
+                        onClicked: {
+                            if (typeof bridge !== "undefined" && bridge) {
+                                bridge.activeCallNumber = root.activeRecipient;
+                                bridge.activeDeck = 3; // Switch to Dialer deck
                             }
                         }
                     }
 
                     // Delete Thread button
-                    Rectangle {
+                    FelineButton {
+                        text: "Delete"
+                        variant: "danger"
+                        iconName: "trash"
                         implicitHeight: 28
-                        implicitWidth: delRow.implicitWidth + 12
-                        radius: Theme.radiusSm
-                        color: deleteHover.containsMouse ? Qt.rgba(255, 51, 102, 0.2) : Theme.colorObsidian
-                        border.color: deleteHover.containsMouse ? Theme.colorCrimson : Theme.colorBorder
-                        border.width: 1
-
-                        RowLayout {
-                            id: delRow
-                            anchors.centerIn: parent
-                            spacing: 4
-                            Text { text: "🗑️"; font.pixelSize: 11 }
-                            Text {
-                                text: "Delete"
-                                font.family: Theme.fontSans
-                                font.pixelSize: Theme.fontSizeSmall
-                                color: deleteHover.containsMouse ? Theme.colorCrimson : Theme.textSecondary
-                            }
-                        }
-
-                        MouseArea {
-                            id: deleteHover
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (root.activeThreadId > 0 && typeof bridge !== "undefined" && bridge) {
-                                    bridge.deleteThread(root.activeThreadId);
-                                    root.activeThreadId = -1;
-                                    root.activeRecipient = "";
-                                    root.activeContactName = "";
-                                }
+                        implicitWidth: 90
+                        onClicked: {
+                            if (root.activeThreadId > 0 && typeof bridge !== "undefined" && bridge) {
+                                bridge.deleteThread(root.activeThreadId);
+                                root.activeThreadId = -1;
+                                root.activeRecipient = "";
+                                root.activeContactName = "";
                             }
                         }
                     }
@@ -525,7 +501,7 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             height: 34
-                            radius: Theme.radiusSm
+                            radius: Theme.radiusMd
                             color: Theme.colorObsidian
                             border.color: recipientInput.activeFocus ? Theme.colorCyan : Theme.colorBorder
                             border.width: 1
@@ -564,7 +540,7 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             implicitHeight: Math.max(64, Math.min(120, msgInput.implicitHeight + Theme.spacingMd * 2))
-                            radius: Theme.radiusSm
+                            radius: Theme.radiusMd
                             color: Theme.colorObsidian
                             border.color: msgInput.activeFocus ? Theme.colorCyan : Theme.colorBorder
                             border.width: 1
@@ -602,10 +578,12 @@ Item {
                         FelineButton {
                             text: !(bridge?.modemPresent ?? true) ? "Offline" : "Send"
                             variant: !(bridge?.modemPresent ?? true) ? "secondary" : "primary"
-                            iconGlyph: !(bridge?.modemPresent ?? true) ? "🔌" : "➤"
-                            implicitWidth: 100
+                            iconName: !(bridge?.modemPresent ?? true) ? "plug" : "send"
+                            loading: bridge?.isSendingSms ?? false
+                            loadingText: "Sending..."
+                            implicitWidth: 104
                             implicitHeight: 44
-                            disabled: !(bridge?.modemPresent ?? true) || !recipientInput.text || !msgInput.text
+                            disabled: !(bridge?.modemPresent ?? true) || !recipientInput.text || !msgInput.text || (bridge?.isSendingSms ?? false)
                             onClicked: root.sendActiveMessage()
                         }
                     }

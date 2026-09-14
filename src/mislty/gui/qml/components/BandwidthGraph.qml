@@ -13,7 +13,7 @@ Rectangle {
     property string totalBytesStr: "0 B"
     property string iconGlyph: "↓"
 
-    implicitHeight: 86
+    implicitHeight: 90
     implicitWidth: 260
     radius: Theme.radiusMd
     color: Theme.colorObsidian
@@ -31,26 +31,25 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: Theme.spacingSm
-        spacing: 4
+        anchors.margins: Theme.spacingMd
+        spacing: 6
 
         // Header
         RowLayout {
             Layout.fillWidth: true
             spacing: 6
 
-            Text {
-                text: root.iconGlyph
-                font.pixelSize: 13
-                font.weight: Font.Bold
+            Icon {
+                name: (root.iconGlyph === "↑" || root.title.toLowerCase().indexOf("upload") !== -1) ? "upload" : "download"
+                size: 14
                 color: root.barColor
             }
 
             Text {
                 text: root.title
-                font.family: Theme.fontMono
+                font.family: Theme.fontSans
                 font.pixelSize: Theme.fontSizeSmall
-                font.weight: Font.Bold
+                font.weight: Font.DemiBold
                 color: Theme.textSecondary
             }
 
@@ -68,10 +67,10 @@ Rectangle {
         // Animated Bar Pulse / Sparkline
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 32
+            Layout.preferredHeight: 30
             radius: Theme.radiusSm
             color: Theme.colorVoid
-            border.color: Qt.rgba(255, 255, 255, 0.05)
+            border.color: Theme.colorBorderSubtle
             border.width: 1
             clip: true
 
@@ -91,14 +90,14 @@ Rectangle {
                         required property int index
                         width: barRow.barW
                         anchors.bottom: parent.bottom
-                        radius: 1
+                        radius: 1.5
 
                         property real val: (root.history && root.history[index] !== undefined) ? Number(root.history[index]) : 0.0
                         property real maxV: root.computeMax()
 
-                        height: Math.max(3, Math.min(parent.height - 2, (val / maxV) * (parent.height - 2)))
+                        height: Math.max(2, Math.min(parent.height - 2, (val / maxV) * (parent.height - 2)))
                         color: root.barColor
-                        opacity: 0.35 + (0.65 * (index / Math.max(1, barRow.numBars - 1)))
+                        opacity: 0.30 + (0.70 * (index / Math.max(1, barRow.numBars - 1)))
 
                         Behavior on height {
                             NumberAnimation { duration: Theme.animFast; easing.type: Easing.OutQuad }
@@ -114,14 +113,14 @@ Rectangle {
             Text {
                 text: "Peak: " + root.peakRateStr
                 font.family: Theme.fontMono
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: 10
                 color: Theme.textMuted
             }
             Item { Layout.fillWidth: true }
             Text {
                 text: "Total: " + root.totalBytesStr
                 font.family: Theme.fontMono
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: 10
                 color: Theme.textSecondary
             }
         }

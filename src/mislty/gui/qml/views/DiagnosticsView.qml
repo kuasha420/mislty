@@ -20,6 +20,8 @@ Item {
             Layout.fillWidth: true
             title: "Modem Hardware & Serial Endpoints"
             subtitle: (bridge?.modemPresent ?? false) ? "Physical USB peripheral nodes in /dev/mislty/" : "No Qualcomm MDM9600 hardware detected on USB bus"
+            iconName: "cpu"
+            iconColor: Theme.colorCyan
 
             ColumnLayout {
                 Layout.fillWidth: true
@@ -30,7 +32,7 @@ Item {
                     visible: !(bridge?.modemPresent ?? false)
                     Layout.fillWidth: true
                     implicitHeight: 38
-                    radius: Theme.radiusSm
+                    radius: Theme.radiusMd
                     color: Qt.rgba(243, 156, 18, 0.12)
                     border.color: Theme.colorGold
                     border.width: 1
@@ -41,7 +43,7 @@ Item {
                         anchors.rightMargin: Theme.spacingMd
                         spacing: Theme.spacingSm
 
-                        Text { text: "⚠️"; font.pixelSize: 14 }
+                        Icon { name: "alert-triangle"; size: 14; color: Theme.colorGold }
                         Text {
                             Layout.fillWidth: true
                             text: "Hardware Unplugged: Connect the USB modem to activate AT serial control and diagnostics."
@@ -101,6 +103,8 @@ Item {
             Layout.fillHeight: true
             title: "AT Diagnostic Terminal"
             subtitle: (bridge?.modemReady ?? false) ? "Direct serial port transaction console" : "Console standby — serial port offline"
+            iconName: "terminal"
+            iconColor: Theme.colorCyan
 
             ColumnLayout {
                 Layout.fillWidth: true
@@ -111,7 +115,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    radius: Theme.radiusSm
+                    radius: Theme.radiusMd
                     color: Theme.colorVoid
                     border.color: Theme.colorBorder
                     border.width: 1
@@ -127,7 +131,7 @@ Item {
                             readOnly: true
                             text: {
                                 if (!(bridge?.modemPresent ?? false)) {
-                                    return root.consoleLog + "\n⚠️ Modem hardware is disconnected. Please connect the USB modem to send AT commands.";
+                                    return root.consoleLog + "\n[SYSTEM] Modem hardware is disconnected. Please connect the USB modem to send AT commands.";
                                 }
                                 return root.consoleLog;
                             }
@@ -174,8 +178,9 @@ Item {
                     FelineButton {
                         text: "Clear"
                         variant: "secondary"
+                        iconName: "trash"
                         implicitHeight: 26
-                        implicitWidth: 60
+                        implicitWidth: 74
                         onClicked: {
                             root.consoleLog = "";
                         }
@@ -190,9 +195,9 @@ Item {
                     Rectangle {
                         Layout.fillWidth: true
                         height: 38
-                        radius: Theme.radiusSm
+                        radius: Theme.radiusMd
                         color: Theme.colorObsidian
-                        border.color: Theme.colorBorder
+                        border.color: atInput.activeFocus ? Theme.colorCyan : Theme.colorBorder
                         border.width: 1
 
                         TextInput {
@@ -219,8 +224,8 @@ Item {
                     FelineButton {
                         text: "Execute"
                         variant: "primary"
-                        iconGlyph: "⚡"
-                        implicitWidth: 96
+                        iconName: "zap"
+                        implicitWidth: 104
                         implicitHeight: 38
                         disabled: !(bridge?.modemReady ?? false) || !atInput.text
                         onClicked: sendCommand(atInput.text)

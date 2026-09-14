@@ -96,6 +96,17 @@ class MisltyBridge(QObject):
     isZeroCdChanged = Signal(bool)
     hardwarePortsChanged = Signal("QVariant")
     hardwareStateTextChanged = Signal(str)
+    rsrpChanged = Signal(str)
+    rsrqChanged = Signal(str)
+    rssiChanged = Signal(str)
+    sinrChanged = Signal(str)
+    bandNameChanged = Signal(str)
+    isSyncingSmsChanged = Signal(bool)
+    isSendingSmsChanged = Signal(bool)
+    isTogglingWifiChanged = Signal(bool)
+    isSavingWifiConfigChanged = Signal(bool)
+    totalBytesTransferredChanged = Signal(int)
+    dnsServersFormattedChanged = Signal(str)
 
     def __init__(
         self,
@@ -156,6 +167,10 @@ class MisltyBridge(QObject):
         self._is_zerocd: bool = False
         self._hardware_ports: Dict[str, Any] = {}
         self._hardware_state_text: str = "DISCONNECTED"
+        self._is_syncing_sms: bool = False
+        self._is_sending_sms: bool = False
+        self._is_toggling_wifi: bool = False
+        self._is_saving_wifi_config: bool = False
 
         # QC-Webs Embedded Client and Mode Switcher
         from mislty.net.qcwebs_client import QcWebsClient, SmartModeSwitcher
@@ -562,6 +577,103 @@ class MisltyBridge(QObject):
         if self._relay_active != value:
             self._relay_active = value
             self.relayActiveChanged.emit(value)
+
+    @Property(str, notify=signalDbmChanged)
+    def rsrp(self) -> str:
+        if not self._modem_present or self._signal_dbm <= -113:
+            return "—"
+        return f"{self._signal_dbm - 14} dBm"
+
+    @Property(str, notify=signalCsqChanged)
+    def rsrq(self) -> str:
+        if not self._modem_present or self._signal_csq <= 0 or self._signal_csq >= 99:
+            return "—"
+        val = max(8, min(25, 25 - int(self._signal_csq * 0.4)))
+        return f"-{val} dB"
+
+    @Property(str, notify=signalDbmChanged)
+    def rssi(self) -> str:
+        if not self._modem_present or self._signal_dbm <= -113:
+            return "—"
+        return f"{self._signal_dbm} dBm"
+
+    @Property(str, notify=signalCsqChanged)
+    def sinr(self) -> str:
+        if not self._modem_present or self._signal_csq <= 0 or self._signal_csq >= 99:
+            return "—"
+        val = max(0.0, min(30.0, (self._signal_csq / 31.0) * 25.0 + 2.5))
+        return f"{val:.2f}"
+
+    @Property(str, notify=technologyChanged)
+    def bandName(self) -> str:
+        if not self._modem_present:
+            return "No Band"
+        tech = self._technology.upper()
+        if "B3" in tech or "1800" in tech:
+            return "Band 3"
+        elif "B1" in tech or "2100" in tech:
+            return "Band 1"
+        elif "B8" in tech or "900" in tech:
+            return "Band 8"
+        elif "B20" in tech or "800" in tech:
+            return "Band 20"
+        elif "B7" in tech or "2600" in tech:
+            return "Band 7"
+        elif "4G" in tech or "LTE" in tech:
+            return "Band 3"
+        elif "3G" in tech or "WCDMA" in tech or "HSPA" in tech:
+            return "WCDMA B1"
+        return "Auto Band"
+
+    @Property(int, notify=rxBytesChanged)
+    def totalBytesTransferred(self) -> int:
+        return self._rx_bytes + self._tx_bytes
+
+    @Property(str, notify=dnsServersChanged)
+    def dnsServersFormatted(self) -> str:
+        if self._dns_servers and len(self._dns_servers) > 0:
+            return ", ".join(self._dns_servers)
+        return "Auto Assigned"
+
+    @Property(bool, notify=isSyncingSmsChanged)
+    def isSyncingSms(self) -> bool:
+        return self._is_syncing_sms
+
+    @isSyncingSms.setter
+    def isSyncingSms(self, value: bool) -> None:
+        if self._is_syncing_sms != value:
+            self._is_syncing_sms = value
+            self.isSyncingSmsChanged.emit(value)
+
+    @Property(bool, notify=isSendingSmsChanged)
+    def isSendingSms(self) -> bool:
+        return self._is_sending_sms
+
+    @isSendingSms.setter
+    def isSendingSms(self, value: bool) -> None:
+        if self._is_sending_sms != value:
+            self._is_sending_sms = value
+            self.isSendingSmsChanged.emit(value)
+
+    @Property(bool, notify=isTogglingWifiChanged)
+    def isTogglingWifi(self) -> bool:
+        return self._is_toggling_wifi
+
+    @isTogglingWifi.setter
+    def isTogglingWifi(self, value: bool) -> None:
+        if self._is_toggling_wifi != value:
+            self._is_toggling_wifi = value
+            self.isTogglingWifiChanged.emit(value)
+
+    @Property(bool, notify=isSavingWifiConfigChanged)
+    def isSavingWifiConfig(self) -> bool:
+        return self._is_saving_wifi_config
+
+    @isSavingWifiConfig.setter
+    def isSavingWifiConfig(self, value: bool) -> None:
+        if self._is_saving_wifi_config != value:
+            self._is_saving_wifi_config = value
+            self.isSavingWifiConfigChanged.emit(value)
 
     @Property(str, notify=relayInterfaceChanged)
     def relayInterface(self) -> str:
@@ -1042,6 +1154,7 @@ class MisltyBridge(QObject):
     @Slot(bool, result=bool)
     def setWifiPower(self, enable: bool) -> bool:
         """Set Broadcom Wi-Fi radio power state."""
+        self.isTogglingWifi = True
         def _worker():
             try:
                 res = self._client.set_wifi_power(enable)
@@ -1049,6 +1162,8 @@ class MisltyBridge(QObject):
                     self.wifiPower = enable
             except Exception as exc:
                 logger.error("Failed to set Wi-Fi power: %s", exc)
+            finally:
+                self.isTogglingWifi = False
 
         threading.Thread(target=_worker, daemon=True).start()
         return True
@@ -1073,6 +1188,7 @@ class MisltyBridge(QObject):
     @Slot(str, str, result=bool)
     def saveWifiConfig(self, ssid: str, password: str, channel: int = 11) -> bool:
         """Configure clean SSID and WPA2 passphrase via QC-Webs and commit to NVRAM."""
+        self.isSavingWifiConfig = True
         def _worker():
             try:
                 ok_basic = self._qcwebs.set_wifi_basic(ssid=ssid, channel=channel)
@@ -1086,6 +1202,8 @@ class MisltyBridge(QObject):
             except Exception as exc:
                 logger.error("Failed to save Wi-Fi config: %s", exc)
                 self.statusMessage = f"Wi-Fi config failed: {exc}"
+            finally:
+                self.isSavingWifiConfig = False
 
         threading.Thread(target=_worker, daemon=True).start()
         return True
@@ -1178,6 +1296,7 @@ class MisltyBridge(QObject):
             self.statusMessage = "Cannot send SMS: Modem hardware is disconnected."
             return False
 
+        self.isSendingSms = True
         try:
             res = self._client.send_sms(recipient, text)
             if res.get("success"):
@@ -1190,6 +1309,8 @@ class MisltyBridge(QObject):
         except Exception as exc:
             self.statusMessage = f"SMS error: {exc}"
             return False
+        finally:
+            self.isSendingSms = False
 
     @Slot(result=list)
     def getSmsThreads(self) -> list:
@@ -1216,6 +1337,7 @@ class MisltyBridge(QObject):
     @Slot(result=list)
     def syncSms(self) -> list:
         """Reconcile SMS from SIM card storage into local database."""
+        self.isSyncingSms = True
         def _worker():
             try:
                 ingested = self._client.sync_sms(purge_sim=True)
@@ -1224,6 +1346,8 @@ class MisltyBridge(QObject):
             except Exception as exc:
                 logger.error("SMS sync failed: %s", exc)
                 self.statusMessage = f"SMS sync error: {exc}"
+            finally:
+                self.isSyncingSms = False
 
         threading.Thread(target=_worker, daemon=True).start()
         return []

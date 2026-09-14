@@ -107,11 +107,11 @@ def test_theme_qml_tokens(qapp):
     assert theme is not None
 
     # Check Color Tokens
-    assert theme.property("colorVoid").name().lower() == "#0c0e14"
-    assert theme.property("colorObsidian").name().lower() == "#141721"
-    assert theme.property("colorCyan").name().lower() == "#00f0ff"
-    assert theme.property("colorGold").name().lower() == "#f39c12"
-    assert theme.property("colorSuccess").name().lower() == "#00e676"
+    assert theme.property("colorVoid").name().lower() == "#080a0f"
+    assert theme.property("colorObsidian").name().lower() == "#0d1017"
+    assert theme.property("colorCyan").name().lower() == "#38bdf8"
+    assert theme.property("colorGold").name().lower() == "#f59e0b"
+    assert theme.property("colorSuccess").name().lower() == "#10b981"
 
     # Check Helper Functions
     assert theme.formatBytes(500) == "500 B"
@@ -130,12 +130,12 @@ def test_theme_qml_tokens(qapp):
 
 
 def test_reusable_components_load(qapp):
-    """Verify reusable components (Card, StatusPill, SignalBars, FelineButton) instantiate cleanly."""
+    """Verify reusable components (Card, StatusPill, SignalBars, FelineButton, Icon) instantiate cleanly."""
     engine = QQmlApplicationEngine()
     qml_dir = Path(__file__).resolve().parent.parent / "src" / "mislty" / "gui" / "qml"
     engine.addImportPath(str(qml_dir))
 
-    for name in ["Card.qml", "StatusPill.qml", "SignalBars.qml", "FelineButton.qml"]:
+    for name in ["Card.qml", "StatusPill.qml", "SignalBars.qml", "FelineButton.qml", "Icon.qml", "DualWaveGraph.qml", "RfEqualizerMeter.qml", "RfTowerMeter.qml"]:
         comp_path = qml_dir / "components" / name
         comp = QQmlComponent(engine, str(comp_path))
         assert not comp.isError(), f"Component {name} error: {[e.toString() for e in comp.errors()]}"
@@ -158,6 +158,9 @@ def test_mislty_bridge_properties_and_signals(qapp, mock_client):
     assert bridge.wifiSsid == "TypeScript 420"
     assert bridge.wifiClientsCount == 2
     assert bridge.transportMode == "socket"
+    assert bridge.bandName == "Band 3"
+    assert "dB" in bridge.rsrp or bridge.rsrp == "—"
+    assert "dB" in bridge.rsrq or bridge.rsrq == "—"
 
     # Verify property mutation and signal emissions
     deck_changed = []
