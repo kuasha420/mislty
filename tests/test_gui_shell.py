@@ -207,3 +207,94 @@ def test_create_app_shell_load(qapp, mock_client):
     assert bridge.activeDeck == 1
     bridge.setActiveDeck(3)
     assert bridge.activeDeck == 3
+
+
+def test_hardware_unplugged_state(qapp):
+    """Verify GUI reflects unplugged modem state across bridge properties, guards, and QML decks."""
+    class MockUnpluggedClient:
+        def __init__(self):
+            self.active_transport = "direct"
+
+        def get_status(self):
+            return {
+                "daemon": {
+                    "is_running": False,
+                    "connected": False,
+                },
+                "hardware": {
+                    "is_present": False,
+                    "is_ready": False,
+                    "is_zerocd": False,
+                    "ports": {},
+                },
+                "cellular_ppp": {
+                    "is_connected": False,
+                },
+                "wifi": {
+                    "power": False,
+                },
+            }
+
+        def connect(self, **kwargs):
+            return {"success": False, "error": "Modem hardware is not connected"}
+
+        def disconnect(self):
+            return {"success": True}
+
+        def execute_at(self, *args, **kwargs):
+            return {"success": False, "error": "Modem hardware is not connected"}
+
+        def send_sms(self, *args, **kwargs):
+            return {"success": False, "error": "Modem hardware is not connected"}
+
+        def list_sms(self, *args, **kwargs):
+            return []
+
+        def sync_sms(self, *args, **kwargs):
+            return []
+
+        def list_wlan_devices(self):
+            return []
+
+        def get_hotspot_relay_status(self):
+            return {"active": False}
+
+    unplugged_client = MockUnpluggedClient()
+    bridge = MisltyBridge(client=unplugged_client)
+
+    # Assert hardware-aware reactive properties
+    assert bridge.modemPresent is False
+    assert bridge.modemReady is False
+    assert bridge.isZeroCd is False
+    assert bridge.hardwareStateText == "DISCONNECTED"
+    assert bridge.operator == "No Modem Detected"
+    assert bridge.technology == "OFFLINE"
+    assert bridge.signalBars == 0
+    assert bridge.signalCsq == 0
+    assert bridge.signalDbm == -113
+
+    # Test hardware guards
+    assert bridge.connectData() is False
+    assert "disconnected" in bridge.statusMessage.lower() or "not connected" in bridge.statusMessage.lower()
+
+    at_res = bridge.executeAt("AT")
+    assert "ERROR" in at_res
+    assert "disconnected" in at_res.lower()
+
+    assert bridge.sendSms("+8801700000000", "test") is False
+    assert "disconnected" in bridge.statusMessage.lower() or "not connected" in bridge.statusMessage.lower()
+
+    # Verify create_app loads and all 5 decks render without errors in unplugged state
+    app, engine, app_bridge = create_app(client=unplugged_client)
+    assert app is not None
+    assert engine is not None
+    assert app_bridge.modemPresent is False
+
+    root_objs = engine.rootObjects()
+    assert len(root_objs) == 1
+
+    # Cycle through all decks
+    for deck_idx in range(5):
+        app_bridge.setActiveDeck(deck_idx)
+        assert app_bridge.activeDeck == deck_idx
+

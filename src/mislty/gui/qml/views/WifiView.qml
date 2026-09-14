@@ -25,6 +25,36 @@ Item {
             spacing: Theme.spacingMd
 
             // ===============================================================
+            // MODEM UNPLUGGED WARNING BANNER
+            // ===============================================================
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 46
+                radius: Theme.radiusMd
+                color: Qt.rgba(255, 75, 75, 0.12)
+                border.color: Qt.rgba(255, 75, 75, 0.35)
+                border.width: 1
+                visible: !(bridge?.modemPresent ?? true)
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingMd
+                    spacing: Theme.spacingSm
+
+                    Text { text: "🔌"; font.pixelSize: 18 }
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Modem Disconnected: Integrated Broadcom Wi-Fi co-processor and GoForm AP controls are offline. Host-level Assist Hotspot Relay remains active."
+                        font.family: Theme.fontSans
+                        font.pixelSize: Theme.fontSizeSmall
+                        font.weight: Font.DemiBold
+                        color: Theme.colorCoral
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
+
+            // ===============================================================
             // TOP HERO CARD: WI-FI RADIO CONTROLLER & DUAL-PLANE STATE
             // ===============================================================
             Rectangle {
@@ -32,7 +62,9 @@ Item {
                 implicitHeight: 96
                 radius: Theme.radiusLg
                 color: Theme.colorObsidian
-                border.color: (bridge?.wifiPower ?? false) ? Theme.colorBorderActive : Theme.colorBorder
+                border.color: !(bridge?.modemPresent ?? true)
+                              ? Qt.rgba(255, 75, 75, 0.3)
+                              : ((bridge?.wifiPower ?? false) ? Theme.colorBorderActive : Theme.colorBorder)
                 border.width: (bridge?.wifiPower ?? false) ? 1.5 : 1
 
                 Behavior on border.color { ColorAnimation { duration: Theme.animNormal } }
@@ -47,13 +79,17 @@ Item {
                         width: 48
                         height: 48
                         radius: Theme.radiusMd
-                        color: (bridge?.wifiPower ?? false) ? Qt.rgba(0, 240, 255, 0.12) : Qt.rgba(121, 130, 169, 0.12)
-                        border.color: (bridge?.wifiPower ?? false) ? Theme.colorCyan : Theme.colorBorder
+                        color: !(bridge?.modemPresent ?? true)
+                               ? Qt.rgba(255, 75, 75, 0.1)
+                               : ((bridge?.wifiPower ?? false) ? Qt.rgba(0, 240, 255, 0.12) : Qt.rgba(121, 130, 169, 0.12))
+                        border.color: !(bridge?.modemPresent ?? true)
+                                      ? Qt.rgba(255, 75, 75, 0.4)
+                                      : ((bridge?.wifiPower ?? false) ? Theme.colorCyan : Theme.colorBorder)
                         border.width: 1
 
                         Text {
                             anchors.centerIn: parent
-                            text: (bridge?.wifiPower ?? false) ? "📶" : "💤"
+                            text: !(bridge?.modemPresent ?? true) ? "🔌" : ((bridge?.wifiPower ?? false) ? "📶" : "💤")
                             font.pixelSize: 22
                         }
                     }
@@ -68,11 +104,15 @@ Item {
                             spacing: Theme.spacingSm
 
                             Text {
-                                text: (bridge?.wifiPower ?? false) ? "Wi-Fi Hotspot: ACTIVE" : "Wi-Fi Hotspot: STANDBY"
+                                text: !(bridge?.modemPresent ?? true)
+                                      ? "Wi-Fi Co-Processor: OFFLINE"
+                                      : ((bridge?.wifiPower ?? false) ? "Wi-Fi Hotspot: ACTIVE" : "Wi-Fi Hotspot: STANDBY")
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeH2
                                 font.weight: Font.Bold
-                                color: (bridge?.wifiPower ?? false) ? Theme.colorSuccess : Theme.textMuted
+                                color: !(bridge?.modemPresent ?? true)
+                                       ? Theme.colorCoral
+                                       : ((bridge?.wifiPower ?? false) ? Theme.colorSuccess : Theme.textMuted)
                                 elide: Text.ElideRight
                             }
 
@@ -80,18 +120,20 @@ Item {
                                 height: 20
                                 width: modeTag.implicitWidth + 12
                                 radius: Theme.radiusSm
-                                color: Qt.rgba(0, 240, 255, 0.1)
-                                border.color: Qt.rgba(0, 240, 255, 0.3)
+                                color: !(bridge?.modemPresent ?? true) ? Qt.rgba(255, 75, 75, 0.1) : Qt.rgba(0, 240, 255, 0.1)
+                                border.color: !(bridge?.modemPresent ?? true) ? Qt.rgba(255, 75, 75, 0.3) : Qt.rgba(0, 240, 255, 0.3)
                                 border.width: 1
 
                                 Text {
                                     id: modeTag
                                     anchors.centerIn: parent
-                                    text: ((bridge?.operationalMode ?? "usb_modem") === "pocket_router") ? "POCKET ROUTER" : "USB MODEM + AUX AP"
+                                    text: !(bridge?.modemPresent ?? true)
+                                          ? "DISCONNECTED"
+                                          : (((bridge?.operationalMode ?? "usb_modem") === "pocket_router") ? "POCKET ROUTER" : "USB MODEM + AUX AP")
                                     font.family: Theme.fontMono
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.weight: Font.Bold
-                                    color: Theme.colorCyan
+                                    color: !(bridge?.modemPresent ?? true) ? Theme.colorCoral : Theme.colorCyan
                                 }
                             }
 
@@ -100,9 +142,11 @@ Item {
 
                         Text {
                             Layout.fillWidth: true
-                            text: (bridge?.wifiPower ?? false)
-                                ? ("Broadcom 802.11b/g/n • SSID '" + ((bridge?.wifiSsid && bridge.wifiSsid.length > 0) ? bridge.wifiSsid : "Active") + "' • Channel 11")
-                                : "Radio powered down into low-power sleep mode (commit to NVRAM)."
+                            text: !(bridge?.modemPresent ?? true)
+                                ? "USB modem unplugged. Broadcom Wi-Fi co-processor is physically disconnected."
+                                : ((bridge?.wifiPower ?? false)
+                                    ? ("Broadcom 802.11b/g/n • SSID '" + ((bridge?.wifiSsid && bridge.wifiSsid.length > 0) ? bridge.wifiSsid : "Active") + "' • Channel 11")
+                                    : "Radio powered down into low-power sleep mode (commit to NVRAM).")
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontSizeCaption
                             color: Theme.textSecondary
@@ -112,11 +156,14 @@ Item {
 
                     // Radio Power Toggle Action
                     FelineButton {
-                        text: (bridge?.wifiPower ?? false) ? "Disable Hotspot" : "Enable Hotspot"
-                        variant: (bridge?.wifiPower ?? false) ? "danger" : "gold"
-                        iconGlyph: "⚡"
+                        text: !(bridge?.modemPresent ?? true)
+                              ? "Hardware Offline"
+                              : ((bridge?.wifiPower ?? false) ? "Disable Hotspot" : "Enable Hotspot")
+                        variant: !(bridge?.modemPresent ?? true) ? "secondary" : ((bridge?.wifiPower ?? false) ? "danger" : "gold")
+                        iconGlyph: !(bridge?.modemPresent ?? true) ? "🔌" : "⚡"
                         implicitWidth: 145
                         implicitHeight: 40
+                        disabled: !(bridge?.modemPresent ?? true)
                         onClicked: {
                             if (typeof bridge !== "undefined" && bridge) {
                                 bridge.toggleWifi();
@@ -132,11 +179,14 @@ Item {
             Card {
                 Layout.fillWidth: true
                 title: "Smart Operational Mode Switcher"
-                subtitle: "Sub-4s seamless handover between Host USB Modem and Standalone Pocket Router"
+                subtitle: !(bridge?.modemPresent ?? true)
+                          ? "Modem offline — Mode switching unavailable until USB modem is connected"
+                          : "Sub-4s seamless handover between Host USB Modem and Standalone Pocket Router"
 
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: Theme.spacingLg
+                    opacity: !(bridge?.modemPresent ?? true) ? 0.45 : 1.0
 
                     // USB Modem Mode Card Option
                     Rectangle {
@@ -149,7 +199,8 @@ Item {
 
                         MouseArea {
                             anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
+                            enabled: bridge?.modemPresent ?? true
+                            cursorShape: (bridge?.modemPresent ?? true) ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     bridge.switchMode("usb_modem");
@@ -198,7 +249,8 @@ Item {
 
                         MouseArea {
                             anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
+                            enabled: bridge?.modemPresent ?? true
+                            cursorShape: (bridge?.modemPresent ?? true) ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     bridge.switchMode("pocket_router");
@@ -369,6 +421,7 @@ Item {
                             variant: "outline"
                             iconGlyph: "🌐"
                             implicitHeight: 38
+                            disabled: !(bridge?.modemPresent ?? true)
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     bridge.openWebUi();
@@ -381,6 +434,7 @@ Item {
                             variant: "secondary"
                             iconGlyph: "🔄"
                             implicitHeight: 38
+                            disabled: !(bridge?.modemPresent ?? true)
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     bridge.rebootModem();
@@ -396,6 +450,7 @@ Item {
                             iconGlyph: "💾"
                             implicitWidth: 150
                             implicitHeight: 38
+                            disabled: !(bridge?.modemPresent ?? true)
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     var ch = 11;

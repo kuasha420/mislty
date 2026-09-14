@@ -91,6 +91,11 @@ class MisltyBridge(QObject):
     relayBusyChanged = Signal(bool)
     relayErrorChanged = Signal(str)
     isScanningDevicesChanged = Signal(bool)
+    modemPresentChanged = Signal(bool)
+    modemReadyChanged = Signal(bool)
+    isZeroCdChanged = Signal(bool)
+    hardwarePortsChanged = Signal("QVariant")
+    hardwareStateTextChanged = Signal(str)
 
     def __init__(
         self,
@@ -146,6 +151,11 @@ class MisltyBridge(QObject):
         self._relay_busy: bool = False
         self._relay_error: str = ""
         self._is_scanning_devices: bool = False
+        self._modem_present: bool = False
+        self._modem_ready: bool = False
+        self._is_zerocd: bool = False
+        self._hardware_ports: Dict[str, Any] = {}
+        self._hardware_state_text: str = "DISCONNECTED"
 
         # QC-Webs Embedded Client and Mode Switcher
         from mislty.net.qcwebs_client import QcWebsClient, SmartModeSwitcher
@@ -643,6 +653,56 @@ class MisltyBridge(QObject):
             self._is_scanning_devices = value
             self.isScanningDevicesChanged.emit(value)
 
+    @Property(bool, notify=modemPresentChanged)
+    def modemPresent(self) -> bool:
+        return self._modem_present
+
+    @modemPresent.setter
+    def modemPresent(self, value: bool) -> None:
+        if self._modem_present != value:
+            self._modem_present = value
+            self.modemPresentChanged.emit(value)
+
+    @Property(bool, notify=modemReadyChanged)
+    def modemReady(self) -> bool:
+        return self._modem_ready
+
+    @modemReady.setter
+    def modemReady(self, value: bool) -> None:
+        if self._modem_ready != value:
+            self._modem_ready = value
+            self.modemReadyChanged.emit(value)
+
+    @Property(bool, notify=isZeroCdChanged)
+    def isZeroCd(self) -> bool:
+        return self._is_zerocd
+
+    @isZeroCd.setter
+    def isZeroCd(self, value: bool) -> None:
+        if self._is_zerocd != value:
+            self._is_zerocd = value
+            self.isZeroCdChanged.emit(value)
+
+    @Property("QVariant", notify=hardwarePortsChanged)
+    def hardwarePorts(self) -> Dict[str, Any]:
+        return self._hardware_ports
+
+    @hardwarePorts.setter
+    def hardwarePorts(self, value: Dict[str, Any]) -> None:
+        if self._hardware_ports != value:
+            self._hardware_ports = value
+            self.hardwarePortsChanged.emit(value)
+
+    @Property(str, notify=hardwareStateTextChanged)
+    def hardwareStateText(self) -> str:
+        return self._hardware_state_text
+
+    @hardwareStateText.setter
+    def hardwareStateText(self, value: str) -> None:
+        if self._hardware_state_text != value:
+            self._hardware_state_text = value
+            self.hardwareStateTextChanged.emit(value)
+
     def _get_aux_netns(self) -> Optional[str]:
         """Detect if auxiliary Wi-Fi interface is configured in an isolated network namespace."""
         from mislty.core.port_resolver import PortResolver
@@ -661,11 +721,38 @@ class MisltyBridge(QObject):
         daemon = stat.get("daemon", {})
         cellular = stat.get("cellular_ppp", {})
         wifi = stat.get("wifi", {})
+        hardware = stat.get("hardware", {})
 
         is_connected = bool(cellular.get("connected", cellular.get("is_connected", False)))
         self.connected = is_connected
         self.isDaemonRunning = bool(daemon.get("is_running", False))
         self.transportMode = self._client.active_transport
+
+        # Hardware presence & endpoint states
+        if "hardware" in stat and stat["hardware"] is not None:
+            hardware = stat["hardware"]
+            is_pres = bool(hardware.get("is_present", False))
+            is_rdy = bool(hardware.get("is_ready", False))
+            is_zcd = bool(hardware.get("is_zerocd", False))
+        else:
+            hardware = {}
+            is_pres = bool(daemon.get("connected") or is_connected or daemon.get("carrier"))
+            is_rdy = is_pres
+            is_zcd = False
+
+        self.hardwarePorts = hardware
+        self.modemPresent = is_pres
+        self.modemReady = is_rdy
+        self.isZeroCd = is_zcd
+
+        if not is_pres:
+            self.hardwareStateText = "DISCONNECTED"
+        elif is_zcd:
+            self.hardwareStateText = "ZEROCD"
+        elif is_rdy:
+            self.hardwareStateText = "READY"
+        else:
+            self.hardwareStateText = "INCOMPLETE"
 
         # Cellular details
         ip = cellular.get("ip_address") or ""
@@ -674,11 +761,18 @@ class MisltyBridge(QObject):
         self.dnsServers = cellular.get("dns_servers") or []
 
         # Carrier & RF Signal
-        csq = daemon.get("rssi") or 0
-        dbm = daemon.get("dbm") or (-113 + (csq * 2) if csq > 0 and csq != 99 else -113)
-        bars = daemon.get("bars") or 0
-        carrier = daemon.get("carrier") or ("Active Network" if is_connected else "Searching Carrier...")
-        tech = daemon.get("technology") or "4G LTE"
+        if not is_pres:
+            csq = 0
+            dbm = -113
+            bars = 0
+            carrier = "No Modem Detected"
+            tech = "OFFLINE"
+        else:
+            csq = daemon.get("rssi") or 0
+            dbm = daemon.get("dbm") or (-113 + (csq * 2) if csq > 0 and csq != 99 else -113)
+            bars = daemon.get("bars") or 0
+            carrier = daemon.get("carrier") or ("Active Network" if is_connected else "Searching Carrier...")
+            tech = daemon.get("technology") or "4G LTE"
 
         self.signalCsq = csq
         self.signalDbm = dbm
@@ -890,6 +984,10 @@ class MisltyBridge(QObject):
     @Slot(result=bool)
     def connectData(self, apn: str = "internet") -> bool:
         """Initiate cellular data connection in background worker thread."""
+        if not self.modemReady:
+            self.statusMessage = "Cannot connect: Modem hardware is disconnected."
+            return False
+
         self.connecting = True
         self.statusMessage = f"Connecting cellular data via APN '{apn}'..."
 
@@ -1061,6 +1159,9 @@ class MisltyBridge(QObject):
     @Slot(str, result=str)
     def executeAt(self, command: str) -> str:
         """Execute raw AT command transaction."""
+        if not self.modemReady:
+            return "ERROR: Modem control port is offline (hardware disconnected)."
+
         try:
             res = self._client.execute_at(command, timeout=3.0)
             lines = res.get("lines", [])
@@ -1073,6 +1174,10 @@ class MisltyBridge(QObject):
     @Slot(str, str, result=bool)
     def sendSms(self, recipient: str, text: str) -> bool:
         """Send an SMS text message."""
+        if not self.modemReady:
+            self.statusMessage = "Cannot send SMS: Modem hardware is disconnected."
+            return False
+
         try:
             res = self._client.send_sms(recipient, text)
             if res.get("success"):

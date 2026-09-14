@@ -45,7 +45,32 @@ Item {
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: Theme.spacingSm
+                // Modem Disconnected Banner
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 32
+                    radius: Theme.radiusSm
+                    color: Qt.rgba(255, 75, 75, 0.1)
+                    border.color: Qt.rgba(255, 75, 75, 0.3)
+                    border.width: 1
+                    visible: !(bridge?.modemPresent ?? true)
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 6
+                        spacing: 6
+
+                        Text { text: "🔌"; font.pixelSize: 12 }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Modem disconnected: Voice PCM audio stream (/dev/mislty/voice) is offline."
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontSizeCaption
+                            color: Theme.colorCoral
+                            elide: Text.ElideRight
+                        }
+                    }
+                }
 
                 // Number Display Screen
                 Rectangle {
@@ -74,12 +99,14 @@ Item {
                                     implicitWidth: stateText.implicitWidth + 12
                                     radius: 10
                                     color: {
+                                        if (!(bridge?.modemPresent ?? true)) return Qt.rgba(255, 75, 75, 0.2);
                                         if (root.activeCallState === "CONNECTED") return Qt.rgba(0, 230, 118, 0.2);
                                         if (root.activeCallState === "DIALING" || root.activeCallState === "ALERTING") return Qt.rgba(243, 156, 18, 0.2);
                                         if (root.activeCallState === "TERMINATED") return Qt.rgba(255, 51, 102, 0.2);
                                         return Qt.rgba(86, 93, 109, 0.2);
                                     }
                                     border.color: {
+                                        if (!(bridge?.modemPresent ?? true)) return Theme.colorCoral;
                                         if (root.activeCallState === "CONNECTED") return Theme.colorSuccess;
                                         if (root.activeCallState === "DIALING" || root.activeCallState === "ALERTING") return Theme.colorGold;
                                         if (root.activeCallState === "TERMINATED") return Theme.colorDanger;
@@ -90,11 +117,12 @@ Item {
                                     Text {
                                         id: stateText
                                         anchors.centerIn: parent
-                                        text: root.activeCallState
+                                        text: !(bridge?.modemPresent ?? true) ? "MODEM OFFLINE" : root.activeCallState
                                         font.family: Theme.fontMono
                                         font.pixelSize: 10
                                         font.weight: Font.Bold
                                         color: {
+                                            if (!(bridge?.modemPresent ?? true)) return Theme.colorCoral;
                                             if (root.activeCallState === "CONNECTED") return Theme.colorSuccess;
                                             if (root.activeCallState === "DIALING" || root.activeCallState === "ALERTING") return Theme.colorGold;
                                             if (root.activeCallState === "TERMINATED") return Theme.colorDanger;
@@ -239,30 +267,30 @@ Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         radius: Theme.radiusMd
-                        color: (root.dialInput.length === 0 || root.activeCallState !== "IDLE")
+                        color: (!(bridge?.modemPresent ?? true) || root.dialInput.length === 0 || root.activeCallState !== "IDLE")
                                ? Theme.colorCardHover
                                : (callBtnHover.containsMouse ? "#00ff88" : Theme.colorSuccess)
-                        opacity: (root.dialInput.length === 0 || root.activeCallState !== "IDLE") ? 0.4 : 1.0
+                        opacity: (!(bridge?.modemPresent ?? true) || root.dialInput.length === 0 || root.activeCallState !== "IDLE") ? 0.4 : 1.0
 
                         RowLayout {
                             anchors.centerIn: parent
                             spacing: Theme.spacingSm
-                            Text { text: "📞"; font.pixelSize: 16 }
+                            Text { text: !(bridge?.modemPresent ?? true) ? "🔌" : "📞"; font.pixelSize: 16 }
                             Text {
-                                text: "Place Call"
+                                text: !(bridge?.modemPresent ?? true) ? "Modem Offline" : "Place Call"
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeBody
                                 font.weight: Font.Bold
-                                color: Theme.textInverse
+                                color: !(bridge?.modemPresent ?? true) ? Theme.textMuted : Theme.textInverse
                             }
                         }
 
                         MouseArea {
                             id: callBtnHover
                             anchors.fill: parent
-                            enabled: root.dialInput.length > 0 && root.activeCallState === "IDLE"
+                            enabled: (bridge?.modemPresent ?? true) && root.dialInput.length > 0 && root.activeCallState === "IDLE"
                             hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
+                            cursorShape: (bridge?.modemPresent ?? true) ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge && bridge.dialNumber) {
                                     bridge.dialNumber(root.dialInput);

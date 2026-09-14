@@ -13,11 +13,94 @@ Item {
         anchors.fill: parent
         spacing: Theme.spacingMd
 
+        // ===================================================================
+        // TOP CARD: HARDWARE & SERIAL PORT INSPECTOR
+        // ===================================================================
+        Card {
+            Layout.fillWidth: true
+            title: "Modem Hardware & Serial Endpoints"
+            subtitle: (bridge?.modemPresent ?? false) ? "Physical USB peripheral nodes in /dev/mislty/" : "No Qualcomm MDM9600 hardware detected on USB bus"
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spacingSm
+
+                // Unplugged Warning Banner
+                Rectangle {
+                    visible: !(bridge?.modemPresent ?? false)
+                    Layout.fillWidth: true
+                    implicitHeight: 38
+                    radius: Theme.radiusSm
+                    color: Qt.rgba(243, 156, 18, 0.12)
+                    border.color: Theme.colorGold
+                    border.width: 1
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.spacingMd
+                        anchors.rightMargin: Theme.spacingMd
+                        spacing: Theme.spacingSm
+
+                        Text { text: "⚠️"; font.pixelSize: 14 }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Hardware Unplugged: Connect the USB modem to activate AT serial control and diagnostics."
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontSizeCaption
+                            font.weight: Font.DemiBold
+                            color: Theme.colorGold
+                        }
+                    }
+                }
+
+                // Port Status Pills Row
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Theme.spacingSm
+
+                    StatusPill {
+                        label: "CONTROL"
+                        value: (bridge?.hardwarePorts?.control) ? bridge.hardwarePorts.control : "MISSING"
+                        statusColor: (bridge?.hardwarePorts?.control) ? Theme.colorSuccess : Theme.colorDanger
+                    }
+
+                    StatusPill {
+                        label: "DATA"
+                        value: (bridge?.hardwarePorts?.data) ? bridge.hardwarePorts.data : "MISSING"
+                        statusColor: (bridge?.hardwarePorts?.data) ? Theme.colorSuccess : Theme.colorDanger
+                    }
+
+                    StatusPill {
+                        label: "VOICE"
+                        value: (bridge?.hardwarePorts?.voice) ? bridge.hardwarePorts.voice : "OFFLINE"
+                        statusColor: (bridge?.hardwarePorts?.voice) ? Theme.colorSuccess : Theme.textMuted
+                    }
+
+                    StatusPill {
+                        label: "DIAG"
+                        value: (bridge?.hardwarePorts?.diag) ? bridge.hardwarePorts.diag : "OFFLINE"
+                        statusColor: (bridge?.hardwarePorts?.diag) ? Theme.colorSuccess : Theme.textMuted
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    StatusPill {
+                        label: "USB BUS"
+                        value: (bridge?.modemPresent ?? false) ? ((bridge?.hardwarePorts?.vid ?? "05c6") + ":" + (bridge?.hardwarePorts?.pid ?? "9025")) : "UNPLUGGED"
+                        statusColor: (bridge?.modemPresent ?? false) ? Theme.colorSuccess : Theme.colorDanger
+                    }
+                }
+            }
+        }
+
+        // ===================================================================
+        // BOTTOM CARD: AT DIAGNOSTIC TERMINAL
+        // ===================================================================
         Card {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "AT Diagnostic Terminal & Hardware Inspector"
-            subtitle: "Direct serial port transaction console"
+            title: "AT Diagnostic Terminal"
+            subtitle: (bridge?.modemReady ?? false) ? "Direct serial port transaction console" : "Console standby — serial port offline"
 
             ColumnLayout {
                 Layout.fillWidth: true
@@ -42,7 +125,12 @@ Item {
                         TextArea {
                             id: logArea
                             readOnly: true
-                            text: root.consoleLog
+                            text: {
+                                if (!(bridge?.modemPresent ?? false)) {
+                                    return root.consoleLog + "\n⚠️ Modem hardware is disconnected. Please connect the USB modem to send AT commands.";
+                                }
+                                return root.consoleLog;
+                            }
                             font.family: Theme.fontMono
                             font.pixelSize: Theme.fontSizeMono
                             color: Theme.colorCyan
@@ -71,6 +159,7 @@ Item {
                             required property string modelData
                             text: modelData
                             variant: "outline"
+                            disabled: !(bridge?.modemReady ?? false)
                             implicitHeight: 26
                             implicitWidth: 78
                             onClicked: {
@@ -114,9 +203,10 @@ Item {
                             font.pixelSize: Theme.fontSizeBody
                             color: Theme.textPrimary
                             selectByMouse: true
+                            enabled: bridge?.modemReady ?? false
                             // Placeholder
                             Text {
-                                text: "Enter AT command (e.g. AT+CSQ)..."
+                                text: (bridge?.modemReady ?? false) ? "Enter AT command (e.g. AT+CSQ)..." : "Modem disconnected — AT terminal unavailable..."
                                 visible: !atInput.text
                                 color: Theme.textMuted
                                 font.family: Theme.fontMono
@@ -132,7 +222,7 @@ Item {
                         iconGlyph: "⚡"
                         implicitWidth: 96
                         implicitHeight: 38
-                        disabled: !atInput.text
+                        disabled: !(bridge?.modemReady ?? false) || !atInput.text
                         onClicked: sendCommand(atInput.text)
                     }
                 }

@@ -86,6 +86,8 @@ ApplicationWindow {
                         bars: bridge?.signalBars ?? 0
                         csq: bridge?.signalCsq ?? 0
                         dbm: bridge?.signalDbm ?? -113
+                        offline: !(bridge?.modemPresent ?? false)
+                        offlineText: "OFFLINE"
                         showText: true
                     }
 
@@ -93,23 +95,40 @@ ApplicationWindow {
                         height: 22
                         width: carrierLabel.implicitWidth + 12
                         radius: Theme.radiusPill
-                        color: Qt.rgba(0, 240, 255, 0.1)
-                        border.color: Qt.rgba(0, 240, 255, 0.3)
+                        color: (bridge?.modemPresent ?? false) ? Qt.rgba(0, 240, 255, 0.1) : Qt.rgba(255, 51, 102, 0.12)
+                        border.color: (bridge?.modemPresent ?? false) ? Qt.rgba(0, 240, 255, 0.3) : Qt.rgba(255, 51, 102, 0.4)
                         border.width: 1
 
                         Text {
                             id: carrierLabel
                             anchors.centerIn: parent
-                            text: (bridge?.operator && bridge.operator.length > 0) ? bridge.operator : "Searching..."
+                            text: {
+                                if (!(bridge?.modemPresent ?? false)) return "No Modem Detected";
+                                if (bridge?.operator && bridge.operator.length > 0) return bridge.operator;
+                                return "Searching...";
+                            }
                             font.family: Theme.fontSans
                             font.pixelSize: Theme.fontSizeCaption
                             font.weight: Font.DemiBold
-                            color: Theme.colorCyan
+                            color: (bridge?.modemPresent ?? false) ? Theme.colorCyan : Theme.colorDanger
                         }
                     }
                 }
 
                 Item { Layout.fillWidth: true }
+
+                // Hardware Status Pill
+                StatusPill {
+                    label: "MODEM"
+                    value: (bridge?.modemPresent ?? false) ? (bridge?.hardwareStateText ?? "READY") : "OFFLINE"
+                    statusColor: {
+                        if (!(bridge?.modemPresent ?? false)) return Theme.colorDanger;
+                        if (bridge?.isZeroCd ?? false) return Theme.colorWarning;
+                        if (bridge?.modemReady ?? false) return Theme.colorSuccess;
+                        return Theme.colorWarning;
+                    }
+                    pulse: !(bridge?.modemPresent ?? false)
+                }
 
                 // Wi-Fi Status Pill
                 StatusPill {

@@ -53,10 +53,17 @@ class MockVisualBridge(QObject):
     activeDeckChanged = Signal(int)
     callStatusChanged = Signal(str)
     callDurationSecondsChanged = Signal(int)
+    tragicVoiceVisibleChanged = Signal(bool)
     tragicVoiceModalVisibleChanged = Signal(bool)
     smsThreadsChanged = Signal()
     smsMessagesChanged = Signal()
     wifiStationsChanged = Signal()
+
+    modemPresentChanged = Signal(bool)
+    modemReadyChanged = Signal(bool)
+    isZeroCdChanged = Signal(bool)
+    hardwarePortsChanged = Signal(dict)
+    hardwareStateTextChanged = Signal(str)
 
     wlanDevicesChanged = Signal(list)
     relayActiveChanged = Signal(bool)
@@ -69,6 +76,16 @@ class MockVisualBridge(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._modem_present = True
+        self._modem_ready = True
+        self._is_zero_cd = False
+        self._hardware_ports = {
+            "control": "/dev/mislty/control",
+            "data": "/dev/mislty/data",
+            "voice": "/dev/mislty/voice",
+            "diag": "/dev/mislty/diag"
+        }
+        self._hardware_state_text = "READY"
         self._connected = True
         self._connecting = False
         self._operator = "Robi Axiata"
@@ -242,6 +259,21 @@ class MockVisualBridge(QObject):
 
     @Property(list, notify=wifiStationsChanged)
     def wifiStations(self): return self._wifi_clients
+
+    @Property(bool, notify=modemPresentChanged)
+    def modemPresent(self): return self._modem_present
+
+    @Property(bool, notify=modemReadyChanged)
+    def modemReady(self): return self._modem_ready
+
+    @Property(bool, notify=isZeroCdChanged)
+    def isZeroCd(self): return self._is_zero_cd
+
+    @Property(dict, notify=hardwarePortsChanged)
+    def hardwarePorts(self): return self._hardware_ports
+
+    @Property(str, notify=hardwareStateTextChanged)
+    def hardwareStateText(self): return self._hardware_state_text
 
     # Slots called from QML
     @Slot(int)
@@ -424,8 +456,16 @@ def render_inspection(output_dir: Path, live: bool = False):
 
     # Also capture Tragic Voice Lore modal if on dialer view
     bridge.setActiveDeck(3)
-    bridge._tragic_modal = True
-    bridge.tragicVoiceModalVisibleChanged.emit(True)
+    if hasattr(bridge, "tragicVoiceVisibleChanged"):
+        if hasattr(bridge, "tragicVoiceVisible"):
+            try:
+                bridge.tragicVoiceVisible = True
+            except Exception:
+                pass
+        bridge.tragicVoiceVisibleChanged.emit(True)
+    if hasattr(bridge, "tragicVoiceModalVisibleChanged"):
+        bridge._tragic_modal = True
+        bridge.tragicVoiceModalVisibleChanged.emit(True)
     for _ in range(15):
         app.processEvents()
         time.sleep(0.02)

@@ -43,15 +43,15 @@ Item {
                         width: 48
                         height: 48
                         radius: Theme.radiusMd
-                        color: (bridge?.connected ?? false) ? Qt.rgba(0, 240, 255, 0.12) : Qt.rgba(255, 51, 102, 0.12)
-                        border.color: (bridge?.connected ?? false) ? Theme.colorCyan : Theme.colorDanger
+                        color: !(bridge?.modemPresent ?? false) ? Qt.rgba(243, 156, 18, 0.12) : ((bridge?.connected ?? false) ? Qt.rgba(0, 240, 255, 0.12) : Qt.rgba(255, 51, 102, 0.12))
+                        border.color: !(bridge?.modemPresent ?? false) ? Theme.colorGold : ((bridge?.connected ?? false) ? Theme.colorCyan : Theme.colorDanger)
                         border.width: 1
 
                         Text {
                             anchors.centerIn: parent
-                            text: (bridge?.connected ?? false) ? "⚡" : "✕"
+                            text: !(bridge?.modemPresent ?? false) ? "🔌" : ((bridge?.connected ?? false) ? "⚡" : "✕")
                             font.pixelSize: 22
-                            color: (bridge?.connected ?? false) ? Theme.colorCyan : Theme.colorDanger
+                            color: !(bridge?.modemPresent ?? false) ? Theme.colorGold : ((bridge?.connected ?? false) ? Theme.colorCyan : Theme.colorDanger)
                         }
                     }
 
@@ -65,11 +65,15 @@ Item {
                             spacing: Theme.spacingSm
 
                             Text {
-                                text: (bridge?.operator && bridge.operator.length > 0) ? bridge.operator : "Searching Carrier..."
+                                text: {
+                                    if (!(bridge?.modemPresent ?? false)) return "No Modem Detected";
+                                    if (bridge?.operator && bridge.operator.length > 0) return bridge.operator;
+                                    return "Searching Carrier...";
+                                }
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeH2
                                 font.weight: Font.Bold
-                                color: Theme.textPrimary
+                                color: (bridge?.modemPresent ?? false) ? Theme.textPrimary : Theme.colorDanger
                                 elide: Text.ElideRight
                             }
 
@@ -78,18 +82,22 @@ Item {
                                 height: 20
                                 width: techText.implicitWidth + 12
                                 radius: Theme.radiusSm
-                                color: Qt.rgba(243, 156, 18, 0.15)
-                                border.color: Theme.colorGold
+                                color: (bridge?.modemPresent ?? false) ? Qt.rgba(243, 156, 18, 0.15) : Qt.rgba(255, 51, 102, 0.12)
+                                border.color: (bridge?.modemPresent ?? false) ? Theme.colorGold : Theme.colorDanger
                                 border.width: 1
 
                                 Text {
                                     id: techText
                                     anchors.centerIn: parent
-                                    text: (bridge?.technology && bridge.technology.length > 0) ? bridge.technology : "4G LTE"
+                                    text: {
+                                        if (!(bridge?.modemPresent ?? false)) return "OFFLINE";
+                                        if (bridge?.technology && bridge.technology.length > 0) return bridge.technology;
+                                        return "4G LTE";
+                                    }
                                     font.family: Theme.fontMono
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.weight: Font.Bold
-                                    color: Theme.colorGold
+                                    color: (bridge?.modemPresent ?? false) ? Theme.colorGold : Theme.colorDanger
                                 }
                             }
 
@@ -102,13 +110,14 @@ Item {
 
                             Text {
                                 text: {
+                                    if (!(bridge?.modemPresent ?? false)) return "Qualcomm MDM9600 USB modem is unplugged. Please connect modem to USB port.";
                                     if (bridge?.connecting ?? false) return "Connecting cellular data session (ppp0)...";
                                     if (bridge?.connected ?? false) return "Active cellular data plane linked to primary route (ppp0)";
                                     return "Qualcomm MDM9600 cellular radio registered and standing by";
                                 }
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeCaption
-                                color: (bridge?.connected ?? false) ? Theme.colorSuccess : Theme.textSecondary
+                                color: !(bridge?.modemPresent ?? false) ? Theme.colorGold : ((bridge?.connected ?? false) ? Theme.colorSuccess : Theme.textSecondary)
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
@@ -139,14 +148,16 @@ Item {
                     // Primary 1-Click Connect / Disconnect Button
                     FelineButton {
                         text: {
+                            if (!(bridge?.modemPresent ?? false)) return "Modem Unplugged";
                             if (bridge?.connecting ?? false) return "Connecting...";
                             if (bridge?.connected ?? false) return "Disconnect";
                             return "Connect Data";
                         }
-                        variant: (bridge?.connected ?? false) ? "danger" : "primary"
-                        iconGlyph: (bridge?.connected ?? false) ? "⏹" : "▶"
+                        variant: !(bridge?.modemPresent ?? false) ? "secondary" : ((bridge?.connected ?? false) ? "danger" : "primary")
+                        iconGlyph: !(bridge?.modemPresent ?? false) ? "🔌" : ((bridge?.connected ?? false) ? "⏹" : "▶")
                         loading: bridge?.connecting ?? false
-                        implicitWidth: 142
+                        disabled: !(bridge?.modemPresent ?? false)
+                        implicitWidth: 154
                         implicitHeight: 42
                         onClicked: {
                             if (typeof bridge !== "undefined" && bridge) {
@@ -177,7 +188,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
                     title: "Cellular RF Telemetry"
-                    subtitle: "Qualcomm MDM9600 Transceiver Quality"
+                    subtitle: !(bridge?.modemPresent ?? false) ? "Hardware Disconnected — Transceiver Inactive" : "Qualcomm MDM9600 Transceiver Quality"
 
                     ColumnLayout {
                         Layout.fillWidth: true
@@ -192,6 +203,7 @@ Item {
                                 bars: bridge?.signalBars ?? 0
                                 csq: bridge?.signalCsq ?? 0
                                 dbm: bridge?.signalDbm ?? -113
+                                offline: !(bridge?.modemPresent ?? false)
                                 showText: false
                             }
 
@@ -200,18 +212,20 @@ Item {
                                 spacing: 2
 
                                 Text {
-                                    text: (bridge?.signalBars ?? 0) + " of 5 Signal Bars"
+                                    text: !(bridge?.modemPresent ?? false) ? "Transceiver Offline" : ((bridge?.signalBars ?? 0) + " of 5 Signal Bars")
                                     font.family: Theme.fontSans
                                     font.pixelSize: Theme.fontSizeH2
                                     font.weight: Font.Bold
-                                    color: Theme.signalColor(bridge?.signalCsq ?? 0)
+                                    color: !(bridge?.modemPresent ?? false) ? Theme.textMuted : Theme.signalColor(bridge?.signalCsq ?? 0)
                                 }
 
                                 Text {
-                                    text: Theme.csqToDbm(bridge?.signalCsq ?? 0) + " (" + (bridge?.signalCsq ?? 0) + "/31 CSQ)"
-                                    font.family: Theme.fontMono
+                                    text: !(bridge?.modemPresent ?? false) ? "Connect USB modem to sample CSQ & RSSI" : (Theme.csqToDbm(bridge?.signalCsq ?? 0) + " (" + (bridge?.signalCsq ?? 0) + "/31 CSQ)")
+                                    font.family: Theme.fontSans
                                     font.pixelSize: Theme.fontSizeCaption
                                     color: Theme.textSecondary
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
                                 }
                             }
                         }
@@ -364,7 +378,7 @@ Item {
                             spacing: 4
 
                             Text {
-                                text: (bridge?.wifiPower ?? false) ? ("SSID: " + ((bridge?.wifiSsid && bridge.wifiSsid.length > 0) ? bridge.wifiSsid : "Active")) : "Wi-Fi Radio Disabled"
+                                text: !(bridge?.modemPresent ?? false) ? "Co-Processor Offline" : ((bridge?.wifiPower ?? false) ? ("SSID: " + ((bridge?.wifiSsid && bridge.wifiSsid.length > 0) ? bridge.wifiSsid : "Active")) : "Wi-Fi Radio Disabled")
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeH3
                                 font.weight: Font.Bold
@@ -372,17 +386,21 @@ Item {
                             }
 
                             Text {
-                                text: (bridge?.wifiPower ?? false) ? ((bridge?.wifiClientsCount ?? 0) + " client(s) connected • SoftAP channel 11") : "Turn on Wi-Fi radio to broadcast wireless SSID"
+                                text: !(bridge?.modemPresent ?? false) ? "Broadcom Wi-Fi radio is hosted on the unplugged USB modem" : ((bridge?.wifiPower ?? false) ? ((bridge?.wifiClientsCount ?? 0) + " client(s) connected • SoftAP channel 11") : "Turn on Wi-Fi radio to broadcast wireless SSID")
                                 font.family: Theme.fontSans
                                 font.pixelSize: Theme.fontSizeCaption
                                 color: Theme.textSecondary
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
                             }
                         }
 
                         FelineButton {
-                            text: (bridge?.wifiPower ?? false) ? "Disable Wi-Fi" : "Enable Wi-Fi"
-                            variant: (bridge?.wifiPower ?? false) ? "secondary" : "gold"
-                            iconGlyph: "📶"
+                            text: !(bridge?.modemPresent ?? false) ? "Hardware Offline" : ((bridge?.wifiPower ?? false) ? "Disable Wi-Fi" : "Enable Wi-Fi")
+                            variant: !(bridge?.modemPresent ?? false) ? "secondary" : ((bridge?.wifiPower ?? false) ? "secondary" : "gold")
+                            iconGlyph: !(bridge?.modemPresent ?? false) ? "🔌" : "📶"
+                            disabled: !(bridge?.modemPresent ?? false)
+                            implicitWidth: 148
                             onClicked: {
                                 if (typeof bridge !== "undefined" && bridge) {
                                     bridge.toggleWifi();
@@ -404,6 +422,19 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: Theme.spacingSm
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "HARDWARE STATE:"; font.family: Theme.fontMono; font.pixelSize: Theme.fontSizeSmall; color: Theme.textMuted }
+                            Item { Layout.fillWidth: true }
+                            Text {
+                                text: (bridge?.modemPresent ?? false) ? (bridge?.hardwareStateText ?? "READY") : "DISCONNECTED"
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Bold
+                                color: (bridge?.modemPresent ?? false) ? Theme.colorSuccess : Theme.colorDanger
+                            }
+                        }
 
                         RowLayout {
                             Layout.fillWidth: true

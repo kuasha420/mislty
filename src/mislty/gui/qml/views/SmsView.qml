@@ -59,6 +59,7 @@ Item {
     }
 
     function sendActiveMessage() {
+        if (typeof bridge !== "undefined" && bridge && !bridge.modemPresent) return;
         var targetNumber = recipientInput.text.trim();
         var content = msgInput.text.trim();
         if (!targetNumber || !content) return;
@@ -93,6 +94,44 @@ Item {
                 Layout.fillHeight: true
                 spacing: Theme.spacingMd
 
+                // Hardware Disconnected Notice Banner
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: discNoticeCol.implicitHeight + 14
+                    radius: Theme.radiusSm
+                    color: Qt.rgba(255, 75, 75, 0.1)
+                    border.color: Qt.rgba(255, 75, 75, 0.3)
+                    border.width: 1
+                    visible: !(bridge?.modemPresent ?? true)
+
+                    ColumnLayout {
+                        id: discNoticeCol
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        spacing: 2
+
+                        RowLayout {
+                            spacing: 4
+                            Text { text: "🔌"; font.pixelSize: 12 }
+                            Text {
+                                text: "Modem Disconnected"
+                                font.family: Theme.fontSans
+                                font.pixelSize: Theme.fontSizeSmall
+                                font.weight: Font.Bold
+                                color: Theme.colorCoral
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "SIM card is offline. Message archive is read-only until modem is reconnected."
+                            font.family: Theme.fontSans
+                            font.pixelSize: Theme.fontSizeCaption
+                            color: Theme.textSecondary
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+                }
+
                 // Action Bar: Sync SIM & New Thread
                 RowLayout {
                     Layout.fillWidth: true
@@ -100,10 +139,11 @@ Item {
 
                     FelineButton {
                         Layout.fillWidth: true
-                        text: "Sync SIM"
-                        variant: "gold"
-                        iconGlyph: "🔄"
+                        text: !(bridge?.modemPresent ?? true) ? "SIM Offline" : "Sync SIM"
+                        variant: !(bridge?.modemPresent ?? true) ? "secondary" : "gold"
+                        iconGlyph: !(bridge?.modemPresent ?? true) ? "🔌" : "🔄"
                         implicitHeight: 34
+                        disabled: !(bridge?.modemPresent ?? true)
                         onClicked: {
                             if (typeof bridge !== "undefined" && bridge) {
                                 bridge.syncSms();
@@ -297,7 +337,9 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         visible: threadsList.count === 0
-                        text: searchInput.text.length > 0 ? "No conversations match filter." : "No SMS threads yet.\nClick 'Sync SIM' to retrieve messages from SIM card."
+                        text: !(bridge?.modemPresent ?? true)
+                              ? "Modem disconnected.\nSIM card and SMS transceiver are offline."
+                              : (searchInput.text.length > 0 ? "No conversations match filter." : "No SMS threads yet.\nClick 'Sync SIM' to retrieve messages from SIM card.")
                         font.family: Theme.fontSans
                         font.pixelSize: Theme.fontSizeCaption
                         color: Theme.textMuted
@@ -558,12 +600,12 @@ Item {
                         }
 
                         FelineButton {
-                            text: "Send"
-                            variant: "primary"
-                            iconGlyph: "➤"
+                            text: !(bridge?.modemPresent ?? true) ? "Offline" : "Send"
+                            variant: !(bridge?.modemPresent ?? true) ? "secondary" : "primary"
+                            iconGlyph: !(bridge?.modemPresent ?? true) ? "🔌" : "➤"
                             implicitWidth: 100
                             implicitHeight: 44
-                            disabled: !recipientInput.text || !msgInput.text
+                            disabled: !(bridge?.modemPresent ?? true) || !recipientInput.text || !msgInput.text
                             onClicked: root.sendActiveMessage()
                         }
                     }
